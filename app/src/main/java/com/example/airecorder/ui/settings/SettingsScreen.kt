@@ -155,7 +155,7 @@ fun SettingsScreen(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.DeleteSweep, contentDescription = null, tint = Color(0xFFEF4444))
-                Text("Delete All Meetings & Data", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                Text("Delete All Recordings & Data", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -172,7 +172,7 @@ fun SettingsScreen(
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
-            title = { Text("Delete All Meetings & Data") },
+            title = { Text("Delete All Recordings & Data") },
             text = { Text("This will delete every local recording, transcript, and summary.") },
         )
     }

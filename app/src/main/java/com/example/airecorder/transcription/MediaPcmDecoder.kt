@@ -4,6 +4,8 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import java.io.File
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.inject.Inject
@@ -17,6 +19,11 @@ class MediaPcmDecoder @Inject constructor() {
         onAudioFormat: (sampleRateHz: Int) -> Unit,
         onPcmChunk: (ByteArray) -> Unit,
     ) {
+        if (audioFilePath.lowercase().endsWith(".wav")) {
+            decodeWaveFile(audioFilePath, onAudioFormat, onPcmChunk)
+            return
+        }
+
         val extractor = MediaExtractor()
         extractor.setDataSource(audioFilePath)
 
@@ -160,5 +167,67 @@ class MediaPcmDecoder @Inject constructor() {
             output[outIndex++] = ((monoSample.toInt() shr 8) and 0xFF).toByte()
         }
         return output
+    }
+
+    private fun decodeWaveFile(
+        audioFilePath: String,
+        onAudioFormat: (sampleRateHz: Int) -> Unit,
+        onPcmChunk: (ByteArray) -> Unit,
+    ) {
+        RandomAccessFile(File(audioFilePath), "r").use { file ->
+            val riff = ByteArray(4)
+            file.readFully(riff)
+            require(String(riff) == "RIFF") { "Invalid WAV file header." }
+            file.skipBytes(4)
+            val wave = ByteArray(4)
+            file.readFully(wave)
+            require(String(wave) == "WAVE") { "Invalid WAV file format." }
+
+            var channels = 1
+            var sampleRate = 16_000
+            var bitsPerSample = 16
+            var dataLength = 0
+            var dataOffset = 0L
+
+            while (file.filePointer < file.length()) {
+                val chunkId = ByteArray(4)
+                file.readFully(chunkId)
+                val chunkSize = Integer.reverseBytes(file.readInt())
+                when (String(chunkId)) {
+                    "fmt " -> {
+                        file.skipBytes(2) // audio format
+                        channels = java.lang.Short.reverseBytes(file.readShort()).toInt()
+                        sampleRate = Integer.reverseBytes(file.readInt())
+                        file.skipBytes(6)
+                        bitsPerSample = java.lang.Short.reverseBytes(file.readShort()).toInt()
+                        val remaining = chunkSize - 16
+                        if (remaining > 0) file.skipBytes(remaining)
+                    }
+                    "data" -> {
+                        dataLength = chunkSize
+                        dataOffset = file.filePointer
+                        file.skipBytes(chunkSize)
+                    }
+                    else -> file.skipBytes(chunkSize)
+                }
+            }
+
+            require(dataOffset > 0L) { "WAV file does not contain audio data." }
+            require(bitsPerSample == 16) { "Only 16-bit WAV files are supported." }
+
+            onAudioFormat(sampleRate)
+            file.seek(dataOffset)
+            var remainingBytes = dataLength
+            val buffer = ByteArray(4096.coerceAtMost(remainingBytes))
+            while (remainingBytes > 0) {
+                val read = file.read(buffer, 0, minOf(buffer.size, remainingBytes))
+                if (read <= 0) break
+                remainingBytes -= read
+                val pcmChunk = ByteBuffer.wrap(buffer, 0, read)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .toMonoPcm16FromInt16(channels)
+                if (pcmChunk.isNotEmpty()) onPcmChunk(pcmChunk)
+            }
+        }
     }
 }

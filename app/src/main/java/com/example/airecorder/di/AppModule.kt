@@ -3,9 +3,9 @@ package com.example.airecorder.di
 import android.content.Context
 import androidx.room.Room
 import com.example.airecorder.audio.AndroidAudioPlayer
-import com.example.airecorder.audio.AndroidAudioRecorder
 import com.example.airecorder.audio.AudioPlayer
 import com.example.airecorder.audio.AudioRecorder
+import com.example.airecorder.audio.DefaultAudioRecorder
 import com.example.airecorder.data.local.dao.MeetingDao
 import com.example.airecorder.data.local.dao.SummaryDao
 import com.example.airecorder.data.local.dao.TranscriptDao
@@ -33,7 +33,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class BindingsModule {
-    @Binds abstract fun bindAudioRecorder(impl: AndroidAudioRecorder): AudioRecorder
+    @Binds abstract fun bindAudioRecorder(impl: DefaultAudioRecorder): AudioRecorder
     @Binds abstract fun bindAudioPlayer(impl: AndroidAudioPlayer): AudioPlayer
     @Binds abstract fun bindMeetingRepository(impl: MeetingRepositoryImpl): MeetingRepository
     @Binds abstract fun bindTranscriptRepository(impl: TranscriptRepositoryImpl): TranscriptRepository
@@ -49,7 +49,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(context, AppDatabase::class.java, "ai_recorder.db").build()
+        return Room.databaseBuilder(context, AppDatabase::class.java, "ai_recorder.db")
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides fun provideMeetingDao(db: AppDatabase): MeetingDao = db.meetingDao()

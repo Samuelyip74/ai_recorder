@@ -1,6 +1,7 @@
 package com.example.airecorder.domain.usecase
 
 import com.example.airecorder.domain.model.AppPreferences
+import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.SummaryType
 import com.example.airecorder.domain.repository.MeetingRepository
 import com.example.airecorder.domain.repository.SettingsRepository
@@ -24,8 +25,17 @@ class SaveRecordingUseCase @Inject constructor(
         tempFilePath: String,
         durationMs: Long,
         fileSizeBytes: Long,
+        recordingMode: RecordingMode,
+        captureNotes: String,
     ): Result<Long> = runCatching {
-        val meetingId = meetingRepository.createMeeting(name, tempFilePath, durationMs, fileSizeBytes)
+        val meetingId = meetingRepository.createMeeting(
+            name = name,
+            tempFilePath = tempFilePath,
+            durationMs = durationMs,
+            fileSizeBytes = fileSizeBytes,
+            recordingMode = recordingMode,
+            captureNotes = captureNotes,
+        )
         val preferences = settingsRepository.preferences.first()
         maybeGenerateTranscriptAndSummary(meetingId, preferences)
         meetingId

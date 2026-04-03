@@ -61,7 +61,7 @@ fun MeetingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Meetings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Recordings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Row {
                 IconButton(onClick = {}) { Icon(Icons.Outlined.Search, contentDescription = null) }
                 IconButton(onClick = {}) { Icon(Icons.Outlined.FilterList, contentDescription = null) }
@@ -72,7 +72,7 @@ fun MeetingsScreen(
             modifier = Modifier.fillMaxWidth(),
             value = uiState.searchQuery,
             onValueChange = onQueryChange,
-            placeholder = { Text("Search meetings...") },
+            placeholder = { Text("Search recordings...") },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -85,7 +85,7 @@ fun MeetingsScreen(
                     .background(Color.White, RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("No meetings yet", color = Color(0xFF8A94A6))
+                Text("No recordings yet", color = Color(0xFF8A94A6))
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -139,6 +139,11 @@ private fun MeetingListItem(meeting: Meeting, onClick: () -> Unit) {
                     "${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(meeting.createdAt))} • ${meeting.durationMs.formatDuration()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF7B8598),
+                )
+                Text(
+                    if (meeting.recordingMode == com.example.airecorder.domain.model.RecordingMode.MIC) "Mic recording" else "Playback capture",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4A79D9),
                 )
                 StatusBadges(
                     transcriptStatus = meeting.transcriptStatus,

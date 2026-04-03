@@ -35,7 +35,7 @@ fun AiRecorderAppRoot() {
     val navController = rememberNavController()
     val items = listOf(
         Triple(NavRoutes.Recorder.route, "Recorder", Icons.Outlined.Mic),
-        Triple(NavRoutes.Meetings.route, "Meetings", Icons.AutoMirrored.Outlined.Article),
+        Triple(NavRoutes.Meetings.route, "Recordings", Icons.AutoMirrored.Outlined.Article),
         Triple(NavRoutes.Settings.route, "Settings", Icons.Outlined.Settings),
     )
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -79,7 +79,12 @@ fun AiRecorderAppRoot() {
                     onStop = viewModel::stopRecording,
                     onDismissDraft = viewModel::discardPendingRecording,
                     onConfirmSave = viewModel::saveMeeting,
+                    onModeSelected = viewModel::selectRecordingMode,
+                    onBeginPlaybackConsentRequest = viewModel::beginPlaybackConsentRequest,
+                    onPlaybackCaptureGranted = viewModel::setPlaybackCaptureConsent,
                     onPermissionDenied = viewModel::onPermissionDenied,
+                    onProjectionConsentDenied = viewModel::onProjectionConsentDenied,
+                    onProjectionLaunchUnavailable = viewModel::onProjectionLaunchUnavailable,
                     onMessageShown = viewModel::clearMessage,
                 )
             }

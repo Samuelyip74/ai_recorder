@@ -17,6 +17,8 @@ fun MeetingEntity.toDomain() = Meeting(
     audioFilePath = audioFilePath,
     durationMs = durationMs,
     fileSizeBytes = fileSizeBytes,
+    recordingMode = recordingMode,
+    captureNotes = captureNotes,
     transcriptStatus = transcriptStatus,
     summaryStatus = summaryStatus,
 )

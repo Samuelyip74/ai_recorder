@@ -2,6 +2,7 @@ package com.example.airecorder.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.SummaryStatus
 import com.example.airecorder.domain.model.TranscriptStatus
 
@@ -14,6 +15,8 @@ data class MeetingEntity(
     val audioFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
+    val recordingMode: RecordingMode,
+    val captureNotes: String,
     val transcriptStatus: TranscriptStatus,
     val summaryStatus: SummaryStatus,
 )

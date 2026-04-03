@@ -5,6 +5,7 @@ import com.example.airecorder.data.local.dao.MeetingDao
 import com.example.airecorder.data.local.dao.SummaryDao
 import com.example.airecorder.data.local.dao.TranscriptDao
 import com.example.airecorder.data.local.entity.MeetingEntity
+import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.StorageStats
 import com.example.airecorder.domain.model.SummaryStatus
 import com.example.airecorder.domain.model.TranscriptStatus
@@ -37,6 +38,8 @@ class MeetingRepositoryImpl @Inject constructor(
         tempFilePath: String,
         durationMs: Long,
         fileSizeBytes: Long,
+        recordingMode: RecordingMode,
+        captureNotes: String,
     ): Long {
         val now = System.currentTimeMillis()
         val finalFile = moveTempFileToMeetings(tempFilePath, now)
@@ -48,6 +51,8 @@ class MeetingRepositoryImpl @Inject constructor(
                 audioFilePath = finalFile.absolutePath,
                 durationMs = durationMs,
                 fileSizeBytes = fileSizeBytes.takeIf { it > 0 } ?: finalFile.length(),
+                recordingMode = recordingMode,
+                captureNotes = captureNotes,
                 transcriptStatus = TranscriptStatus.NOT_STARTED,
                 summaryStatus = SummaryStatus.NOT_STARTED,
             ),
@@ -92,7 +97,8 @@ class MeetingRepositoryImpl @Inject constructor(
 
     private fun moveTempFileToMeetings(tempFilePath: String, timestamp: Long): File {
         val source = File(tempFilePath)
-        val finalFile = File(context.meetingsDirectory(), "meeting_$timestamp.m4a")
+        val extension = source.extension.takeIf { it.isNotBlank() } ?: "m4a"
+        val finalFile = File(context.meetingsDirectory(), "meeting_$timestamp.$extension")
         if (!source.renameTo(finalFile)) {
             source.copyTo(finalFile, overwrite = true)
             source.delete()

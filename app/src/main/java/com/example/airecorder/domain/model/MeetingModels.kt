@@ -8,6 +8,8 @@ data class Meeting(
     val audioFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
+    val recordingMode: RecordingMode,
+    val captureNotes: String,
     val transcriptStatus: TranscriptStatus,
     val summaryStatus: SummaryStatus,
 )
@@ -58,4 +60,6 @@ data class RecordingDraft(
     val tempFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
+    val recordingMode: RecordingMode,
+    val captureNotes: String,
 )

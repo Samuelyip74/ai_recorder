@@ -223,8 +223,13 @@ fun MeetingDetailScreen(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             LabeledValue("File size", detail.meeting.fileSizeBytes.formatBytes(), Modifier.weight(1f))
-            LabeledValue("Status", if (uiState.isPlaying) "Playing" else "Stopped", Modifier.weight(1f))
+            LabeledValue(
+                "Source",
+                if (detail.meeting.recordingMode == com.example.airecorder.domain.model.RecordingMode.MIC) "Mic" else "Playback",
+                Modifier.weight(1f),
+            )
         }
+        LabeledValue("Capture notes", detail.meeting.captureNotes)
 
         SnackbarHost(hostState = snackbarHostState)
     }

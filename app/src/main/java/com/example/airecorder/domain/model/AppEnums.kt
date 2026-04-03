@@ -28,3 +28,8 @@ enum class SummaryType {
     KEY_POINTS,
     ACTION_ITEMS,
 }
+
+enum class RecordingMode {
+    MIC,
+    PLAYBACK_CAPTURE,
+}

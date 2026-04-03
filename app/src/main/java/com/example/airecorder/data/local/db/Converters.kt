@@ -1,6 +1,7 @@
 package com.example.airecorder.data.local.db
 
 import androidx.room.TypeConverter
+import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.SummaryStatus
 import com.example.airecorder.domain.model.SummaryType
 import com.example.airecorder.domain.model.TranscriptStatus
@@ -23,4 +24,10 @@ class Converters {
 
     @TypeConverter
     fun toSummaryType(value: String): SummaryType = SummaryType.valueOf(value)
+
+    @TypeConverter
+    fun fromRecordingMode(value: RecordingMode): String = value.name
+
+    @TypeConverter
+    fun toRecordingMode(value: String): RecordingMode = RecordingMode.valueOf(value)
 }
