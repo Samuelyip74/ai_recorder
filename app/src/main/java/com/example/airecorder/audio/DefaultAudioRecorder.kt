@@ -18,7 +18,7 @@ class DefaultAudioRecorder @Inject constructor(
             RecordingMode.MIC -> RecordingSupport(
                 isSupported = true,
                 requiresMicrophonePermission = true,
-                message = "Records what the microphone hears, including your voice and room audio.",
+                message = "Speech-optimized microphone capture with automatic source fallback.",
             )
             RecordingMode.PLAYBACK_CAPTURE -> playbackCaptureRecorder.getSupport()
         }

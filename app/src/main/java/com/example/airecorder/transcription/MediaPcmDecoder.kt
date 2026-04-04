@@ -43,11 +43,13 @@ class MediaPcmDecoder @Inject constructor() {
                 }
             }
 
-        return if (sourceSampleRateHz == targetSampleRateHz) {
+        val resampled = if (sourceSampleRateHz == targetSampleRateHz) {
             sourceSamples
         } else {
             resampleToTargetRate(sourceSamples, sourceSampleRateHz, targetSampleRateHz)
         }
+
+        return preprocessForSpeech(resampled, targetSampleRateHz)
     }
 
     fun decodeToMonoPcm16(
@@ -283,6 +285,54 @@ class MediaPcmDecoder @Inject constructor() {
             val left = sourceSamples[leftIndex]
             val right = sourceSamples[rightIndex]
             left + ((right - left) * fraction)
+        }
+    }
+
+    private fun preprocessForSpeech(
+        samples: FloatArray,
+        sampleRateHz: Int,
+    ): FloatArray {
+        if (samples.isEmpty()) return samples
+        val trimmed = trimSilence(samples, sampleRateHz)
+        return normalizePeak(trimmed)
+    }
+
+    private fun trimSilence(
+        samples: FloatArray,
+        sampleRateHz: Int,
+    ): FloatArray {
+        if (samples.isEmpty()) return samples
+
+        val threshold = 0.015f
+        val paddingSamples = (sampleRateHz * 0.15f).toInt()
+        var start = 0
+        while (start < samples.size && kotlin.math.abs(samples[start]) < threshold) {
+            start++
+        }
+
+        var end = samples.lastIndex
+        while (end >= start && kotlin.math.abs(samples[end]) < threshold) {
+            end--
+        }
+
+        if (start > end) return samples
+
+        val trimmedStart = (start - paddingSamples).coerceAtLeast(0)
+        val trimmedEnd = (end + paddingSamples).coerceAtMost(samples.lastIndex)
+        return samples.copyOfRange(trimmedStart, trimmedEnd + 1)
+    }
+
+    private fun normalizePeak(samples: FloatArray): FloatArray {
+        if (samples.isEmpty()) return samples
+        val peak = samples.maxOf { kotlin.math.abs(it) }
+        if (peak < 1e-4f) return samples
+
+        val targetPeak = 0.92f
+        val gain = (targetPeak / peak).coerceAtMost(8f)
+        if (gain <= 1.05f) return samples
+
+        return FloatArray(samples.size) { index ->
+            (samples[index] * gain).coerceIn(-1f, 1f)
         }
     }
 }
