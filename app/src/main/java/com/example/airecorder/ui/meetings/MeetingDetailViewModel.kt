@@ -12,6 +12,7 @@ import com.example.airecorder.domain.repository.SettingsRepository
 import com.example.airecorder.domain.repository.SummaryRepository
 import com.example.airecorder.domain.repository.TranscriptRepository
 import com.example.airecorder.domain.usecase.SaveRecordingUseCase
+import com.example.airecorder.domain.usecase.TranslateTranscriptUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +27,14 @@ data class MeetingDetailUiState(
     val detail: MeetingDetail? = null,
     val transcriptDraft: String = "",
     val summaryDraft: String = "",
+    val translatedTranscript: String = "",
     val isPlaying: Boolean = false,
+    val isTranslating: Boolean = false,
     val currentPositionMs: Long = 0L,
     val playbackDurationMs: Long = 0L,
     val message: String? = null,
     val summaryType: SummaryType = SummaryType.CONCISE,
+    val translationTargetLanguage: String = "es",
 )
 
 private data class PlaybackState(
@@ -42,6 +46,8 @@ private data class PlaybackState(
 private data class EditorState(
     val transcriptDraft: String?,
     val summaryDraft: String?,
+    val translatedTranscript: String,
+    val isTranslating: Boolean,
 )
 
 @HiltViewModel
@@ -52,6 +58,7 @@ class MeetingDetailViewModel @Inject constructor(
     private val summaryRepository: SummaryRepository,
     private val settingsRepository: SettingsRepository,
     private val saveRecordingUseCase: SaveRecordingUseCase,
+    private val translateTranscriptUseCase: TranslateTranscriptUseCase,
     private val audioPlayer: AudioPlayer,
 ) : ViewModel() {
 
@@ -63,6 +70,8 @@ class MeetingDetailViewModel @Inject constructor(
     private val message = MutableStateFlow<String?>(null)
     private val transcriptDraft = MutableStateFlow<String?>(null)
     private val summaryDraft = MutableStateFlow<String?>(null)
+    private val translatedTranscript = MutableStateFlow("")
+    private val isTranslating = MutableStateFlow(false)
 
     private val playbackState = combine(
         audioPlayer.isPlaying,
@@ -79,10 +88,14 @@ class MeetingDetailViewModel @Inject constructor(
     private val editorState = combine(
         transcriptDraft,
         summaryDraft,
-    ) { transcriptText, summaryText ->
+        translatedTranscript,
+        isTranslating,
+    ) { transcriptText, summaryText, translatedText, translating ->
         EditorState(
             transcriptDraft = transcriptText,
             summaryDraft = summaryText,
+            translatedTranscript = translatedText,
+            isTranslating = translating,
         )
     }
 
@@ -97,11 +110,14 @@ class MeetingDetailViewModel @Inject constructor(
             detail = detail,
             transcriptDraft = editor.transcriptDraft ?: detail?.transcript?.text.orEmpty(),
             summaryDraft = editor.summaryDraft ?: detail?.summary?.text.orEmpty(),
+            translatedTranscript = editor.translatedTranscript,
             isPlaying = playback.isPlaying,
+            isTranslating = editor.isTranslating,
             currentPositionMs = playback.currentPositionMs,
             playbackDurationMs = playback.playbackDurationMs,
             message = snackbar,
             summaryType = preferences.summaryType,
+            translationTargetLanguage = preferences.translationTargetLanguage,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeetingDetailUiState())
 
@@ -146,6 +162,23 @@ class MeetingDetailViewModel @Inject constructor(
             saveRecordingUseCase.generateSummary(meetingId, uiState.value.summaryType)
                 .onSuccess { message.value = "Summary generated locally." }
                 .onFailure { message.value = "Summary generation failed." }
+        }
+    }
+
+    fun translateTranscript() {
+        if (uiState.value.isTranslating) return
+        viewModelScope.launch {
+            isTranslating.value = true
+            translateTranscriptUseCase(meetingId, uiState.value.translationTargetLanguage)
+                .onSuccess {
+                    translatedTranscript.value = it
+                    message.value = "Transcript translated locally."
+                }
+                .onFailure {
+                    Log.e(TAG, "Transcript translation failed for meetingId=$meetingId", it)
+                    message.value = "Translation failed: ${it.message ?: "Unknown error"}"
+                }
+            isTranslating.value = false
         }
     }
 

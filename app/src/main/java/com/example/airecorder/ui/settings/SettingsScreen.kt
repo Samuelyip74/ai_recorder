@@ -55,6 +55,7 @@ fun SettingsScreen(
     onAutoSummaryChanged: (Boolean) -> Unit,
     onSummaryTypeChanged: (SummaryType) -> Unit,
     onLanguageChanged: (String) -> Unit,
+    onTranslationTargetLanguageChanged: (String) -> Unit,
     onDeleteAll: () -> Unit,
     onMessageShown: () -> Unit,
 ) {
@@ -62,6 +63,7 @@ fun SettingsScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var showSummaryPicker by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
+    var showTranslationTargetPicker by remember { mutableStateOf(false) }
     val languages = listOf("English" to "en", "Spanish" to "es", "French" to "fr", "German" to "de")
 
     LaunchedEffect(uiState.message) {
@@ -126,6 +128,13 @@ fun SettingsScreen(
                 title = "Transcription language",
                 value = languages.firstOrNull { it.second == uiState.preferences.transcriptionLanguage }?.first ?: uiState.preferences.transcriptionLanguage,
                 onClick = { showLanguagePicker = true },
+            )
+            PreferenceRow(
+                icon = Icons.Outlined.Translate,
+                title = "Translation target",
+                value = languages.firstOrNull { it.second == uiState.preferences.translationTargetLanguage }?.first
+                    ?: uiState.preferences.translationTargetLanguage,
+                onClick = { showTranslationTargetPicker = true },
             )
         }
 
@@ -199,6 +208,19 @@ fun SettingsScreen(
             onSelect = {
                 onLanguageChanged(languages[it].second)
                 showLanguagePicker = false
+            },
+        )
+    }
+
+    if (showTranslationTargetPicker) {
+        PickerDialog(
+            title = "Translation target language",
+            options = languages.map { it.first },
+            selected = languages.indexOfFirst { it.second == uiState.preferences.translationTargetLanguage }.coerceAtLeast(0),
+            onDismiss = { showTranslationTargetPicker = false },
+            onSelect = {
+                onTranslationTargetLanguageChanged(languages[it].second)
+                showTranslationTargetPicker = false
             },
         )
     }

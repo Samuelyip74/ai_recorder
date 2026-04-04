@@ -59,6 +59,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setTranscriptionLanguage(language) }
     }
 
+    fun setTranslationTargetLanguage(language: String) {
+        viewModelScope.launch { settingsRepository.setTranslationTargetLanguage(language) }
+    }
+
     fun deleteAllData() {
         viewModelScope.launch {
             meetingRepository.deleteAllMeetings()

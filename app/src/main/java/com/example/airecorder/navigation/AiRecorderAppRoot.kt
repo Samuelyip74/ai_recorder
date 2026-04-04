@@ -115,6 +115,7 @@ fun AiRecorderAppRoot() {
                     onPlayPause = viewModel::togglePlayback,
                     onSeek = viewModel::seekTo,
                     onGenerateTranscript = viewModel::generateTranscript,
+                    onTranslateTranscript = viewModel::translateTranscript,
                     onGenerateSummary = viewModel::generateSummary,
                     onTranscriptTextChange = viewModel::updateTranscriptDraft,
                     onSummaryTextChange = viewModel::updateSummaryDraft,
@@ -133,6 +134,7 @@ fun AiRecorderAppRoot() {
                     onAutoSummaryChanged = viewModel::setAutoSummary,
                     onSummaryTypeChanged = viewModel::setSummaryType,
                     onLanguageChanged = viewModel::setLanguage,
+                    onTranslationTargetLanguageChanged = viewModel::setTranslationTargetLanguage,
                     onDeleteAll = viewModel::deleteAllData,
                     onMessageShown = viewModel::clearMessage,
                 )

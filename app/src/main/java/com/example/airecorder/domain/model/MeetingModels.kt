@@ -54,6 +54,7 @@ data class AppPreferences(
     val autoSummary: Boolean = false,
     val summaryType: SummaryType = SummaryType.CONCISE,
     val transcriptionLanguage: String = "en",
+    val translationTargetLanguage: String = "es",
 )
 
 data class RecordingDraft(

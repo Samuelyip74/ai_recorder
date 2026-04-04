@@ -22,6 +22,8 @@ import com.example.airecorder.summary.PlaceholderSummaryGenerator
 import com.example.airecorder.summary.SummaryGenerator
 import com.example.airecorder.transcription.TranscriptGenerator
 import com.example.airecorder.transcription.VoskTranscriptGenerator
+import com.example.airecorder.translation.MlKitTextTranslator
+import com.example.airecorder.translation.TextTranslator
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -41,6 +43,7 @@ abstract class BindingsModule {
     @Binds abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
     @Binds abstract fun bindTranscriptGenerator(impl: VoskTranscriptGenerator): TranscriptGenerator
     @Binds abstract fun bindSummaryGenerator(impl: PlaceholderSummaryGenerator): SummaryGenerator
+    @Binds abstract fun bindTextTranslator(impl: MlKitTextTranslator): TextTranslator
 }
 
 @Module

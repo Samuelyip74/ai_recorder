@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -66,6 +67,7 @@ fun MeetingDetailScreen(
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onGenerateTranscript: () -> Unit,
+    onTranslateTranscript: () -> Unit,
     onGenerateSummary: () -> Unit,
     onTranscriptTextChange: (String) -> Unit,
     onSummaryTextChange: (String) -> Unit,
@@ -195,8 +197,29 @@ fun MeetingDetailScreen(
                 Text(uiState.transcriptDraft.ifBlank { "Transcript will appear here once generated." })
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = onGenerateTranscript) { Text(if (detail.transcript == null) "Generate" else "Retry") }
+                    Button(
+                        onClick = onTranslateTranscript,
+                        enabled = uiState.transcriptDraft.isNotBlank() && !uiState.isTranslating,
+                    ) {
+                        Text(if (uiState.isTranslating) "Translating..." else "Translate")
+                    }
                     Button(onClick = onSaveTranscript) { Text("Save") }
                     TextButton(onClick = { shareText(context, uiState.transcriptDraft) }) { Text("Share") }
+                }
+                if (uiState.translatedTranscript.isNotBlank()) {
+                    SectionCard("Translated (${uiState.translationTargetLanguage.uppercase()})") {
+                        Text(uiState.translatedTranscript)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            TextButton(onClick = { shareText(context, uiState.translatedTranscript) }) {
+                                Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Text("Share")
+                            }
+                            TextButton(onClick = onTranslateTranscript, enabled = !uiState.isTranslating) {
+                                Icon(Icons.Outlined.Translate, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Text("Retranslate")
+                            }
+                        }
+                    }
                 }
             }
         } else {

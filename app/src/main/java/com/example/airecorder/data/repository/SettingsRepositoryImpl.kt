@@ -29,6 +29,7 @@ class SettingsRepositoryImpl @Inject constructor(
             autoSummary = prefs[Keys.AUTO_SUMMARY] ?: false,
             summaryType = SummaryType.valueOf(prefs[Keys.SUMMARY_TYPE] ?: SummaryType.CONCISE.name),
             transcriptionLanguage = prefs[Keys.LANGUAGE] ?: "en",
+            translationTargetLanguage = prefs[Keys.TRANSLATION_TARGET_LANGUAGE] ?: "es",
         )
     }
 
@@ -48,10 +49,15 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { it[Keys.LANGUAGE] = language }
     }
 
+    override suspend fun setTranslationTargetLanguage(language: String) {
+        dataStore.edit { it[Keys.TRANSLATION_TARGET_LANGUAGE] = language }
+    }
+
     private object Keys {
         val AUTO_TRANSCRIBE = booleanPreferencesKey("auto_transcribe")
         val AUTO_SUMMARY = booleanPreferencesKey("auto_summary")
         val SUMMARY_TYPE = stringPreferencesKey("summary_type")
         val LANGUAGE = stringPreferencesKey("language")
+        val TRANSLATION_TARGET_LANGUAGE = stringPreferencesKey("translation_target_language")
     }
 }

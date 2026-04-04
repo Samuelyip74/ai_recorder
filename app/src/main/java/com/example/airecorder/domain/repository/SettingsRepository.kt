@@ -10,4 +10,5 @@ interface SettingsRepository {
     suspend fun setAutoSummary(enabled: Boolean)
     suspend fun setSummaryType(type: SummaryType)
     suspend fun setTranscriptionLanguage(language: String)
+    suspend fun setTranslationTargetLanguage(language: String)
 }
