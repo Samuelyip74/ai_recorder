@@ -15,6 +15,7 @@ fun MeetingEntity.toDomain() = Meeting(
     createdAt = createdAt,
     updatedAt = updatedAt,
     audioFilePath = audioFilePath,
+    whisperAudioFilePath = whisperAudioFilePath,
     durationMs = durationMs,
     fileSizeBytes = fileSizeBytes,
     recordingMode = recordingMode,

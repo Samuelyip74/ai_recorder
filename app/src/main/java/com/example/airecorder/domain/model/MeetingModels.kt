@@ -6,6 +6,7 @@ data class Meeting(
     val createdAt: Long,
     val updatedAt: Long,
     val audioFilePath: String,
+    val whisperAudioFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
     val recordingMode: RecordingMode,
@@ -59,6 +60,7 @@ data class AppPreferences(
 
 data class RecordingDraft(
     val tempFilePath: String,
+    val tempWhisperFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
     val recordingMode: RecordingMode,

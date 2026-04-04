@@ -6,10 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airecorder.audio.AudioPlayer
 import com.example.airecorder.domain.model.MeetingDetail
-import com.example.airecorder.domain.model.SummaryType
 import com.example.airecorder.domain.repository.MeetingRepository
 import com.example.airecorder.domain.repository.SettingsRepository
-import com.example.airecorder.domain.repository.SummaryRepository
 import com.example.airecorder.domain.repository.TranscriptRepository
 import com.example.airecorder.domain.usecase.SaveRecordingUseCase
 import com.example.airecorder.domain.usecase.TranslateTranscriptUseCase
@@ -26,14 +24,12 @@ import kotlinx.coroutines.launch
 data class MeetingDetailUiState(
     val detail: MeetingDetail? = null,
     val transcriptDraft: String = "",
-    val summaryDraft: String = "",
     val translatedTranscript: String = "",
     val isPlaying: Boolean = false,
     val isTranslating: Boolean = false,
     val currentPositionMs: Long = 0L,
     val playbackDurationMs: Long = 0L,
     val message: String? = null,
-    val summaryType: SummaryType = SummaryType.CONCISE,
     val translationTargetLanguage: String = "es",
 )
 
@@ -45,7 +41,6 @@ private data class PlaybackState(
 
 private data class EditorState(
     val transcriptDraft: String?,
-    val summaryDraft: String?,
     val translatedTranscript: String,
     val isTranslating: Boolean,
 )
@@ -55,7 +50,6 @@ class MeetingDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val meetingRepository: MeetingRepository,
     private val transcriptRepository: TranscriptRepository,
-    private val summaryRepository: SummaryRepository,
     private val settingsRepository: SettingsRepository,
     private val saveRecordingUseCase: SaveRecordingUseCase,
     private val translateTranscriptUseCase: TranslateTranscriptUseCase,
@@ -69,7 +63,6 @@ class MeetingDetailViewModel @Inject constructor(
     private val meetingId: Long = checkNotNull(savedStateHandle["meetingId"])
     private val message = MutableStateFlow<String?>(null)
     private val transcriptDraft = MutableStateFlow<String?>(null)
-    private val summaryDraft = MutableStateFlow<String?>(null)
     private val translatedTranscript = MutableStateFlow("")
     private val isTranslating = MutableStateFlow(false)
 
@@ -87,13 +80,11 @@ class MeetingDetailViewModel @Inject constructor(
 
     private val editorState = combine(
         transcriptDraft,
-        summaryDraft,
         translatedTranscript,
         isTranslating,
-    ) { transcriptText, summaryText, translatedText, translating ->
+    ) { transcriptText, translatedText, translating ->
         EditorState(
             transcriptDraft = transcriptText,
-            summaryDraft = summaryText,
             translatedTranscript = translatedText,
             isTranslating = translating,
         )
@@ -109,14 +100,12 @@ class MeetingDetailViewModel @Inject constructor(
         MeetingDetailUiState(
             detail = detail,
             transcriptDraft = editor.transcriptDraft ?: detail?.transcript?.text.orEmpty(),
-            summaryDraft = editor.summaryDraft ?: detail?.summary?.text.orEmpty(),
             translatedTranscript = editor.translatedTranscript,
             isPlaying = playback.isPlaying,
             isTranslating = editor.isTranslating,
             currentPositionMs = playback.currentPositionMs,
             playbackDurationMs = playback.playbackDurationMs,
             message = snackbar,
-            summaryType = preferences.summaryType,
             translationTargetLanguage = preferences.translationTargetLanguage,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeetingDetailUiState())
@@ -157,14 +146,6 @@ class MeetingDetailViewModel @Inject constructor(
         }
     }
 
-    fun generateSummary() {
-        viewModelScope.launch {
-            saveRecordingUseCase.generateSummary(meetingId, uiState.value.summaryType)
-                .onSuccess { message.value = "Summary generated locally." }
-                .onFailure { message.value = "Summary generation failed." }
-        }
-    }
-
     fun translateTranscript(targetLanguage: String) {
         val normalizedTargetLanguage = targetLanguage.trim().lowercase()
         if (uiState.value.isTranslating || normalizedTargetLanguage.isBlank()) return
@@ -188,21 +169,10 @@ class MeetingDetailViewModel @Inject constructor(
         transcriptDraft.value = value
     }
 
-    fun updateSummaryDraft(value: String) {
-        summaryDraft.value = value
-    }
-
     fun saveTranscriptEdit() {
         viewModelScope.launch {
             transcriptRepository.updateTranscriptText(meetingId, uiState.value.transcriptDraft)
             message.value = "Transcript updated."
-        }
-    }
-
-    fun saveSummaryEdit() {
-        viewModelScope.launch {
-            summaryRepository.updateSummaryText(meetingId, uiState.value.summaryDraft, uiState.value.summaryType)
-            message.value = "Summary updated."
         }
     }
 

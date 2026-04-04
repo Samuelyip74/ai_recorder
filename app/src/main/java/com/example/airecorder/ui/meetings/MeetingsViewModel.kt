@@ -45,4 +45,10 @@ class MeetingsViewModel @Inject constructor(
             meetingRepository.deleteMeeting(meetingId)
         }
     }
+
+    fun deleteAllMeetings() {
+        viewModelScope.launch {
+            meetingRepository.deleteAllMeetings()
+        }
+    }
 }

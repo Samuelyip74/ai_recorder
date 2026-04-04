@@ -43,7 +43,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.airecorder.domain.model.SummaryType
 import com.example.airecorder.ui.components.SectionCard
 import com.example.airecorder.util.formatBytes
 
@@ -52,8 +51,6 @@ fun SettingsScreen(
     paddingValues: PaddingValues,
     uiState: SettingsUiState,
     onAutoTranscribeChanged: (Boolean) -> Unit,
-    onAutoSummaryChanged: (Boolean) -> Unit,
-    onSummaryTypeChanged: (SummaryType) -> Unit,
     onLanguageChanged: (String) -> Unit,
     onTranslationTargetLanguageChanged: (String) -> Unit,
     onDeleteAll: () -> Unit,
@@ -61,7 +58,6 @@ fun SettingsScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmDelete by remember { mutableStateOf(false) }
-    var showSummaryPicker by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
     var showTranslationTargetPicker by remember { mutableStateOf(false) }
     val languages = listOf("English" to "en", "Spanish" to "es", "French" to "fr", "German" to "de")
@@ -96,8 +92,7 @@ fun SettingsScreen(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     StorageLegend("Audio", uiState.storageStats.audioBytes.formatBytes(), Color(0xFF2F80FF))
-                    StorageLegend("Transcripts", (uiState.storageStats.textBytes / 2).formatBytes(), Color(0xFFFF9F43))
-                    StorageLegend("Summaries", (uiState.storageStats.textBytes / 2).formatBytes(), Color(0xFF2ED573))
+                    StorageLegend("Transcripts", uiState.storageStats.textBytes.formatBytes(), Color(0xFFFF9F43))
                     StorageLegend("Other", "0 B", Color(0xFFD1D5DB))
                     Text("Manage storage >", color = Color(0xFF2F80FF), style = MaterialTheme.typography.bodySmall)
                 }
@@ -110,18 +105,6 @@ fun SettingsScreen(
                 subtitle = "Generate transcript automatically",
                 checked = uiState.preferences.autoTranscribe,
                 onCheckedChange = onAutoTranscribeChanged,
-            )
-            PreferenceToggle(
-                title = "Auto-summary after transcript",
-                subtitle = "Generate summary automatically",
-                checked = uiState.preferences.autoSummary,
-                onCheckedChange = onAutoSummaryChanged,
-            )
-            PreferenceRow(
-                icon = Icons.Outlined.Tune,
-                title = "Summary style",
-                value = uiState.preferences.summaryType.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
-                onClick = { showSummaryPicker = true },
             )
             PreferenceRow(
                 icon = Icons.Outlined.Translate,
@@ -182,20 +165,7 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
             title = { Text("Delete All Recordings & Data") },
-            text = { Text("This will delete every local recording, transcript, and summary.") },
-        )
-    }
-
-    if (showSummaryPicker) {
-        PickerDialog(
-            title = "Summary style",
-            options = SummaryType.entries.map { it.name.replace('_', ' ').lowercase().replaceFirstChar { c -> c.uppercase() } },
-            selected = uiState.preferences.summaryType.ordinal,
-            onDismiss = { showSummaryPicker = false },
-            onSelect = {
-                onSummaryTypeChanged(SummaryType.entries[it])
-                showSummaryPicker = false
-            },
+            text = { Text("This will delete every local recording and transcript.") },
         )
     }
 

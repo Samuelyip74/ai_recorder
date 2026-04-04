@@ -195,6 +195,7 @@ class RecorderViewModel @Inject constructor(
                             elapsedMs = recorded.durationMs,
                             pendingDraft = RecordingDraft(
                                 tempFilePath = recorded.filePath,
+                                tempWhisperFilePath = recorded.whisperFilePath,
                                 durationMs = recorded.durationMs,
                                 fileSizeBytes = recorded.fileSizeBytes,
                                 recordingMode = recorded.recordingMode,
@@ -211,18 +212,19 @@ class RecorderViewModel @Inject constructor(
 
     fun saveMeeting(inputName: String) {
         val draft = _uiState.value.pendingDraft ?: return
-        val finalName = inputName.ifBlank { "Meeting ${DateFormat.getDateTimeInstance().format(Date())}" }
+        val finalName = inputName.ifBlank { "Recording ${DateFormat.getDateTimeInstance().format(Date())}" }
         viewModelScope.launch {
             _uiState.update { it.copy(recorderState = RecorderState.SAVING) }
             saveRecordingUseCase(
                 name = finalName,
                 tempFilePath = draft.tempFilePath,
+                tempWhisperFilePath = draft.tempWhisperFilePath,
                 durationMs = draft.durationMs,
                 fileSizeBytes = draft.fileSizeBytes,
                 recordingMode = draft.recordingMode,
                 captureNotes = draft.captureNotes,
             ).onSuccess {
-                reset("Meeting saved locally.")
+                reset("Recording saved locally.")
             }.onFailure {
                 _uiState.update { it.copy(recorderState = RecorderState.ERROR, message = "Failed to save recording.") }
             }
@@ -233,6 +235,11 @@ class RecorderViewModel @Inject constructor(
         viewModelScope.launch {
             audioRecorder.cancel()
             _uiState.value.pendingDraft?.let { File(it.tempFilePath).delete() }
+            _uiState.value.pendingDraft?.let { draft ->
+                if (draft.tempWhisperFilePath != draft.tempFilePath) {
+                    File(draft.tempWhisperFilePath).delete()
+                }
+            }
             reset()
         }
     }

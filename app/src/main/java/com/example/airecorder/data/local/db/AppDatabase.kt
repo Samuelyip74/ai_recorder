@@ -12,7 +12,7 @@ import com.example.airecorder.data.local.entity.TranscriptEntity
 
 @Database(
     entities = [MeetingEntity::class, TranscriptEntity::class, SummaryEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

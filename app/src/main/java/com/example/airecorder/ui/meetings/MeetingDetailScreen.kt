@@ -51,7 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.airecorder.domain.model.SummaryStatus
 import com.example.airecorder.domain.model.TranscriptStatus
 import com.example.airecorder.ui.components.SectionCard
 import com.example.airecorder.util.formatDateTime
@@ -68,7 +67,6 @@ fun MeetingDetailScreen(
     onSeek: (Long) -> Unit,
     onGenerateTranscript: () -> Unit,
     onTranslateTranscript: (String) -> Unit,
-    onGenerateSummary: () -> Unit,
     onClearMessage: () -> Unit,
 ) {
     val detail = uiState.detail ?: return
@@ -79,7 +77,6 @@ fun MeetingDetailScreen(
     var renameText by remember(detail.meeting.name) { mutableStateOf(detail.meeting.name) }
     var showTranscriptDialog by remember { mutableStateOf(false) }
     var showTranslationDialog by remember { mutableStateOf(false) }
-    var showSummaryDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var translateLanguageInput by remember(uiState.translationTargetLanguage) {
         mutableStateOf(uiState.translationTargetLanguage)
@@ -198,13 +195,6 @@ fun MeetingDetailScreen(
                     },
                     modifier = Modifier.weight(1f),
                 )
-                ActionButton(
-                    label = "Summary",
-                    enabled = detail.meeting.transcriptStatus == TranscriptStatus.COMPLETED &&
-                        detail.meeting.summaryStatus != SummaryStatus.PROCESSING,
-                    onClick = onGenerateSummary,
-                    modifier = Modifier.weight(1f),
-                )
             }
 
             ActionStatusRow(
@@ -224,16 +214,6 @@ fun MeetingDetailScreen(
                 isFailed = false,
                 readyText = "View translation",
                 onView = { showTranslationDialog = true },
-            )
-
-            ActionStatusRow(
-                title = "Summary",
-                isProcessing = detail.meeting.summaryStatus == SummaryStatus.PROCESSING,
-                isReady = detail.meeting.summaryStatus == SummaryStatus.COMPLETED &&
-                    uiState.summaryDraft.isNotBlank(),
-                isFailed = detail.meeting.summaryStatus == SummaryStatus.FAILED,
-                readyText = "View summary",
-                onView = { showSummaryDialog = true },
             )
         }
 
@@ -272,7 +252,7 @@ fun MeetingDetailScreen(
             },
             dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } },
             title = { Text("Delete Recording") },
-            text = { Text("This will delete the recording, transcript, translation, and summary.") },
+            text = { Text("This will delete the recording, transcript, and translation.") },
         )
     }
 
@@ -311,14 +291,6 @@ fun MeetingDetailScreen(
             title = "Translation (${uiState.translationTargetLanguage.uppercase()})",
             text = uiState.translatedTranscript,
             onDismiss = { showTranslationDialog = false },
-        )
-    }
-
-    if (showSummaryDialog) {
-        DocumentDialog(
-            title = "Summary",
-            text = uiState.summaryDraft,
-            onDismiss = { showSummaryDialog = false },
         )
     }
 }

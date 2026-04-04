@@ -13,6 +13,7 @@ data class MeetingEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val audioFilePath: String,
+    val whisperAudioFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
     val recordingMode: RecordingMode,

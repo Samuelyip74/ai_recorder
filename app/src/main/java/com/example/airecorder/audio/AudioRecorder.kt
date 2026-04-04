@@ -22,6 +22,7 @@ data class RecordingSupport(
 
 data class RecordedAudio(
     val filePath: String,
+    val whisperFilePath: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
     val recordingMode: RecordingMode,

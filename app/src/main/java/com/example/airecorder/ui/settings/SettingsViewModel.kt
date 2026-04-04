@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.airecorder.domain.model.AppPreferences
 import com.example.airecorder.domain.model.StorageStats
-import com.example.airecorder.domain.model.SummaryType
 import com.example.airecorder.domain.repository.MeetingRepository
 import com.example.airecorder.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,14 +46,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setAutoTranscribe(enabled) }
     }
 
-    fun setAutoSummary(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setAutoSummary(enabled) }
-    }
-
-    fun setSummaryType(type: SummaryType) {
-        viewModelScope.launch { settingsRepository.setSummaryType(type) }
-    }
-
     fun setLanguage(language: String) {
         viewModelScope.launch { settingsRepository.setTranscriptionLanguage(language) }
     }
@@ -67,7 +58,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             meetingRepository.deleteAllMeetings()
             refreshStorage()
-            message.value = "All local meeting data deleted."
+            message.value = "All local recordings deleted."
         }
     }
 

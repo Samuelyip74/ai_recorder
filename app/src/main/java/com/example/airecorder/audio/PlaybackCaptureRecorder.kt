@@ -183,6 +183,7 @@ class PlaybackCaptureRecorder @Inject constructor(
         PlaybackCaptureService.stop(context)
         RecordedAudio(
             filePath = file.absolutePath,
+            whisperFilePath = file.absolutePath,
             durationMs = accumulatedDurationMs,
             fileSizeBytes = file.length(),
             recordingMode = RecordingMode.PLAYBACK_CAPTURE,

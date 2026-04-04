@@ -328,7 +328,7 @@ fun RecorderScreen(
             onDismissRequest = onDismissDraft,
             confirmButton = { TextButton(onClick = { onConfirmSave(meetingName) }) { Text("Save") } },
             dismissButton = { TextButton(onClick = onDismissDraft) { Text("Cancel") } },
-            title = { Text("Save Meeting") },
+            title = { Text("Save Recording") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Enter a name for your recording")

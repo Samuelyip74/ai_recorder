@@ -19,6 +19,14 @@ class MediaPcmDecoder @Inject constructor() {
         audioFilePath: String,
         targetSampleRateHz: Int = 16_000,
     ): FloatArray {
+        val rawSamples = decodeToMonoFloat32Raw(audioFilePath, targetSampleRateHz)
+        return preprocessForSpeech(rawSamples, targetSampleRateHz)
+    }
+
+    fun decodeToMonoFloat32Raw(
+        audioFilePath: String,
+        targetSampleRateHz: Int = 16_000,
+    ): FloatArray {
         var sourceSampleRateHz = targetSampleRateHz
         val pcmOutput = ByteArrayOutputStream()
         decodeToMonoPcm16(
@@ -43,13 +51,11 @@ class MediaPcmDecoder @Inject constructor() {
                 }
             }
 
-        val resampled = if (sourceSampleRateHz == targetSampleRateHz) {
+        return if (sourceSampleRateHz == targetSampleRateHz) {
             sourceSamples
         } else {
             resampleToTargetRate(sourceSamples, sourceSampleRateHz, targetSampleRateHz)
         }
-
-        return preprocessForSpeech(resampled, targetSampleRateHz)
     }
 
     fun decodeToMonoPcm16(

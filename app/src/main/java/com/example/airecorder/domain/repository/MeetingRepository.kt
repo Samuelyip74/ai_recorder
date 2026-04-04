@@ -12,6 +12,7 @@ interface MeetingRepository {
     suspend fun createMeeting(
         name: String,
         tempFilePath: String,
+        tempWhisperFilePath: String,
         durationMs: Long,
         fileSizeBytes: Long,
         recordingMode: RecordingMode,

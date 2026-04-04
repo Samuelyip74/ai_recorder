@@ -36,6 +36,7 @@ class MeetingRepositoryImpl @Inject constructor(
     override suspend fun createMeeting(
         name: String,
         tempFilePath: String,
+        tempWhisperFilePath: String,
         durationMs: Long,
         fileSizeBytes: Long,
         recordingMode: RecordingMode,
@@ -43,12 +44,18 @@ class MeetingRepositoryImpl @Inject constructor(
     ): Long {
         val now = System.currentTimeMillis()
         val finalFile = moveTempFileToMeetings(tempFilePath, now)
+        val finalWhisperFile = if (tempWhisperFilePath == tempFilePath) {
+            finalFile
+        } else {
+            moveTempFileToMeetings(tempWhisperFilePath, "${now}_whisper")
+        }
         return meetingDao.insert(
             MeetingEntity(
                 name = name,
                 createdAt = now,
                 updatedAt = now,
                 audioFilePath = finalFile.absolutePath,
+                whisperAudioFilePath = finalWhisperFile.absolutePath,
                 durationMs = durationMs,
                 fileSizeBytes = fileSizeBytes.takeIf { it > 0 } ?: finalFile.length(),
                 recordingMode = recordingMode,
@@ -67,6 +74,7 @@ class MeetingRepositoryImpl @Inject constructor(
     override suspend fun deleteMeeting(meetingId: Long) {
         val existing = meetingDao.getById(meetingId) ?: return
         File(existing.audioFilePath).takeIf { it.exists() }?.delete()
+        File(existing.whisperAudioFilePath).takeIf { it.exists() }?.delete()
         meetingDao.deleteById(meetingId)
     }
 
@@ -96,9 +104,13 @@ class MeetingRepositoryImpl @Inject constructor(
     }
 
     private fun moveTempFileToMeetings(tempFilePath: String, timestamp: Long): File {
+        return moveTempFileToMeetings(tempFilePath, timestamp.toString())
+    }
+
+    private fun moveTempFileToMeetings(tempFilePath: String, fileNameSuffix: String): File {
         val source = File(tempFilePath)
         val extension = source.extension.takeIf { it.isNotBlank() } ?: "m4a"
-        val finalFile = File(context.meetingsDirectory(), "meeting_$timestamp.$extension")
+        val finalFile = File(context.meetingsDirectory(), "meeting_$fileNameSuffix.$extension")
         if (!source.renameTo(finalFile)) {
             source.copyTo(finalFile, overwrite = true)
             source.delete()

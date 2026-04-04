@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import com.example.airecorder.domain.model.RecordingMode
+import com.example.airecorder.transcription.WhisperReadyAudioPreparer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.RandomAccessFile
@@ -24,6 +25,7 @@ import kotlin.math.max
 @Singleton
 class MicAudioRecorder @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val whisperReadyAudioPreparer: WhisperReadyAudioPreparer,
 ) {
 
     companion object {
@@ -31,6 +33,7 @@ class MicAudioRecorder @Inject constructor(
         private const val SAMPLE_RATE_HZ = 44_100
         private const val CHANNEL_MASK = AudioFormat.CHANNEL_IN_MONO
         private const val ENCODING = AudioFormat.ENCODING_PCM_16BIT
+        private const val STARTUP_DISCARD_MS = 200
         private val AUDIO_SOURCES = listOf(
             MediaRecorder.AudioSource.MIC,
             MediaRecorder.AudioSource.VOICE_RECOGNITION,
@@ -50,6 +53,7 @@ class MicAudioRecorder @Inject constructor(
     private var accumulatedDurationMs: Long = 0L
     private var pausedAtMs: Long = 0L
     private var isPaused = false
+    private var bytesToDiscardOnStart = 0
 
     suspend fun start(): Result<String> = runCatching {
         if (audioRecord != null) error("Recorder is already active")
@@ -71,6 +75,7 @@ class MicAudioRecorder @Inject constructor(
         accumulatedDurationMs = 0L
         pausedAtMs = 0L
         isPaused = false
+        bytesToDiscardOnStart = ((SAMPLE_RATE_HZ * (STARTUP_DISCARD_MS / 1000f)) * 2).toInt()
 
         recordingJob = scope.launch {
             val buffer = ByteArray(prepared.bufferSizeInBytes)
@@ -82,8 +87,18 @@ class MicAudioRecorder @Inject constructor(
                 }
                 val bytesRead = record.read(buffer, 0, buffer.size)
                 if (bytesRead > 0) {
-                    writer?.write(buffer, 0, bytesRead)
-                    bytesWritten += bytesRead
+                    var writeOffset = 0
+                    var writeLength = bytesRead
+                    if (bytesToDiscardOnStart > 0) {
+                        val discardCount = minOf(bytesToDiscardOnStart, bytesRead)
+                        bytesToDiscardOnStart -= discardCount
+                        writeOffset += discardCount
+                        writeLength -= discardCount
+                    }
+                    if (writeLength > 0) {
+                        writer?.write(buffer, writeOffset, writeLength)
+                        bytesWritten += writeLength
+                    }
                 }
             }
         }
@@ -132,9 +147,14 @@ class MicAudioRecorder @Inject constructor(
         }
         writer = null
         activeFile = null
+        val whisperReadyFile = whisperReadyAudioPreparer.prepareTempFile(
+            sourceAudioFilePath = file.absolutePath,
+            outputDirectory = context.cacheDir,
+        )
 
         RecordedAudio(
             filePath = file.absolutePath,
+            whisperFilePath = whisperReadyFile.absolutePath,
             durationMs = accumulatedDurationMs,
             fileSizeBytes = file.length(),
             recordingMode = RecordingMode.MIC,
@@ -162,6 +182,7 @@ class MicAudioRecorder @Inject constructor(
         accumulatedDurationMs = 0L
         pausedAtMs = 0L
         isPaused = false
+        bytesToDiscardOnStart = 0
     }
 
     private fun createAudioRecordWithFallback(): PreparedAudioRecord {
@@ -210,6 +231,7 @@ class MicAudioRecorder @Inject constructor(
             append(";format=wav;pcm16")
             append(";sampleRate=").append(SAMPLE_RATE_HZ)
             append(";channels=mono")
+            append(";startupDiscardMs=").append(STARTUP_DISCARD_MS)
             append(";postNoiseReduction=disabled")
             append(";postGain=disabled")
         }
