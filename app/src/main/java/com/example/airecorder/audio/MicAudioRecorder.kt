@@ -1,6 +1,7 @@
 package com.example.airecorder.audio
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -166,6 +167,34 @@ class MicAudioRecorder @Inject constructor(
 
     suspend fun cancel() {
         cleanup()
+    }
+
+    fun getActiveInputRouteLabel(): String? {
+        val routedDevice = audioRecord?.routedDevice ?: return null
+        val deviceName = routedDevice.productName?.toString()?.trim().orEmpty()
+        val routeLabel = when (routedDevice.type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_BLE_SPEAKER,
+            AudioDeviceInfo.TYPE_BLE_BROADCAST,
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            -> "Bluetooth"
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            -> "Wired headset"
+            AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Phone mic"
+            AudioDeviceInfo.TYPE_TELEPHONY -> "Call audio"
+            AudioDeviceInfo.TYPE_USB_DEVICE,
+            AudioDeviceInfo.TYPE_USB_ACCESSORY,
+            -> "USB audio"
+            else -> "Microphone"
+        }
+        return if (deviceName.isNotBlank() && !deviceName.equals(routeLabel, ignoreCase = true)) {
+            "$routeLabel: $deviceName"
+        } else {
+            routeLabel
+        }
     }
 
     private suspend fun cleanup() {

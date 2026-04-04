@@ -30,6 +30,7 @@ data class RecorderUiState(
     val pendingDraft: RecordingDraft? = null,
     val selectedMode: RecordingMode = RecordingMode.MIC,
     val support: RecordingSupport = RecordingSupport(isSupported = true, requiresMicrophonePermission = true),
+    val activeInputRouteLabel: String? = null,
     val isStarting: Boolean = false,
     val isAwaitingPlaybackConsent: Boolean = false,
     val message: String? = null,
@@ -64,6 +65,7 @@ class RecorderViewModel @Inject constructor(
             it.copy(
                 selectedMode = mode,
                 support = audioRecorder.getSupport(mode),
+                activeInputRouteLabel = null,
                 message = null,
             )
         }
@@ -87,6 +89,7 @@ class RecorderViewModel @Inject constructor(
                         it.copy(
                             recorderState = RecorderState.RECORDING,
                             pendingDraft = null,
+                            activeInputRouteLabel = audioRecorder.getActiveInputRouteLabel(),
                             isStarting = false,
                             isAwaitingPlaybackConsent = false,
                             message = null,
@@ -161,7 +164,12 @@ class RecorderViewModel @Inject constructor(
                 .onSuccess {
                     elapsedBeforePause = _uiState.value.elapsedMs
                     timerJob?.cancel()
-                    _uiState.update { it.copy(recorderState = RecorderState.PAUSED) }
+                    _uiState.update {
+                        it.copy(
+                            recorderState = RecorderState.PAUSED,
+                            activeInputRouteLabel = audioRecorder.getActiveInputRouteLabel(),
+                        )
+                    }
                 }
                 .onFailure {
                     _uiState.update { it.copy(message = "Unable to pause recording.") }
@@ -175,7 +183,12 @@ class RecorderViewModel @Inject constructor(
                 .onSuccess {
                     startedAt = System.currentTimeMillis()
                     startTimer()
-                    _uiState.update { it.copy(recorderState = RecorderState.RECORDING) }
+                    _uiState.update {
+                        it.copy(
+                            recorderState = RecorderState.RECORDING,
+                            activeInputRouteLabel = audioRecorder.getActiveInputRouteLabel(),
+                        )
+                    }
                 }
                 .onFailure {
                     _uiState.update { it.copy(message = "Unable to resume recording.") }
@@ -193,6 +206,7 @@ class RecorderViewModel @Inject constructor(
                         it.copy(
                             recorderState = RecorderState.STOPPED_AWAITING_NAME,
                             elapsedMs = recorded.durationMs,
+                            activeInputRouteLabel = null,
                             pendingDraft = RecordingDraft(
                                 tempFilePath = recorded.filePath,
                                 tempWhisperFilePath = recorded.whisperFilePath,
@@ -285,7 +299,12 @@ class RecorderViewModel @Inject constructor(
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (true) {
-                _uiState.update { it.copy(elapsedMs = elapsedBeforePause + (System.currentTimeMillis() - startedAt)) }
+                _uiState.update {
+                    it.copy(
+                        elapsedMs = elapsedBeforePause + (System.currentTimeMillis() - startedAt),
+                        activeInputRouteLabel = audioRecorder.getActiveInputRouteLabel(),
+                    )
+                }
                 delay(250)
             }
         }

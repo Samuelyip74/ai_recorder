@@ -5,6 +5,7 @@ import com.example.airecorder.domain.model.RecordingMode
 
 interface AudioRecorder {
     fun getSupport(mode: RecordingMode): RecordingSupport
+    fun getActiveInputRouteLabel(): String?
     suspend fun setPlaybackCaptureConsent(resultCode: Int, data: Intent?): Result<Unit>
     suspend fun start(mode: RecordingMode): Result<String>
     suspend fun pause(): Result<Unit>

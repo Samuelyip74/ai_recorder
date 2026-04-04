@@ -69,6 +69,10 @@ class PlaybackCaptureRecorder @Inject constructor(
         }
     }
 
+    fun getActiveInputRouteLabel(): String? {
+        return if (audioRecord != null) "App audio" else null
+    }
+
     suspend fun setConsent(resultCode: Int, data: Intent?): Result<Unit> = runCatching {
         if (resultCode == android.app.Activity.RESULT_OK && data != null) {
             Log.d(TAG, "Received fresh MediaProjection consent.")

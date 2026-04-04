@@ -24,6 +24,14 @@ class DefaultAudioRecorder @Inject constructor(
         }
     }
 
+    override fun getActiveInputRouteLabel(): String? {
+        return when (activeMode) {
+            RecordingMode.MIC -> micAudioRecorder.getActiveInputRouteLabel()
+            RecordingMode.PLAYBACK_CAPTURE -> playbackCaptureRecorder.getActiveInputRouteLabel()
+            null -> null
+        }
+    }
+
     override suspend fun setPlaybackCaptureConsent(resultCode: Int, data: Intent?): Result<Unit> {
         return playbackCaptureRecorder.setConsent(resultCode, data)
     }

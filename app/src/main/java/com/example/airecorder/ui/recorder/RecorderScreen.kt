@@ -217,7 +217,7 @@ fun RecorderScreen(
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         ModeChip(
                             icon = Icons.Outlined.Mic,
                             contentDescription = "Mic",
@@ -231,6 +231,16 @@ fun RecorderScreen(
                             onClick = { onModeSelected(RecordingMode.PLAYBACK_CAPTURE) },
                         )
                     }
+                }
+
+                if (!uiState.activeInputRouteLabel.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Input: ${uiState.activeInputRouteLabel}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF7B8598),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
