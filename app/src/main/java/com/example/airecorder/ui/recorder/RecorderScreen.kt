@@ -38,9 +38,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,6 +66,7 @@ import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.RecorderState
 import com.example.airecorder.util.formatDuration
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecorderScreen(
     paddingValues: PaddingValues,
@@ -84,11 +87,12 @@ fun RecorderScreen(
 ) {
     val tag = "RecorderScreen"
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     var meetingName by remember { mutableStateOf("") }
+    var sheetMessage by remember { mutableStateOf<String?>(null) }
     val projectionManager = remember(context) {
         context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
     }
+    val messageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val projectionLauncher = rememberLauncherForActivityResult(
         contract = StartActivityForResult(),
         onResult = { result ->
@@ -136,7 +140,7 @@ fun RecorderScreen(
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
-            snackbarHostState.showSnackbar(it)
+            sheetMessage = it
             onMessageShown()
         }
     }
@@ -307,10 +311,16 @@ fun RecorderScreen(
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
-
-                SnackbarHost(hostState = snackbarHostState)
             }
         }
+    }
+
+    if (sheetMessage != null) {
+        MessageSheet(
+            message = sheetMessage.orEmpty(),
+            sheetState = messageSheetState,
+            onDismiss = { sheetMessage = null },
+        )
     }
 
     if (uiState.recorderState == RecorderState.STOPPED_AWAITING_NAME && uiState.pendingDraft != null) {
@@ -331,6 +341,43 @@ fun RecorderScreen(
                 }
             },
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MessageSheet(
+    message: String,
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFF1F2330),
+        contentColor = Color.White,
+        dragHandle = null,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Close", color = Color(0xFF9FC1FF))
+                }
+            }
+        }
     }
 }
 
