@@ -4,6 +4,7 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -13,6 +14,41 @@ import javax.inject.Singleton
 
 @Singleton
 class MediaPcmDecoder @Inject constructor() {
+
+    fun decodeToMonoFloat32(
+        audioFilePath: String,
+        targetSampleRateHz: Int = 16_000,
+    ): FloatArray {
+        var sourceSampleRateHz = targetSampleRateHz
+        val pcmOutput = ByteArrayOutputStream()
+        decodeToMonoPcm16(
+            audioFilePath = audioFilePath,
+            onAudioFormat = { sampleRateHz ->
+                sourceSampleRateHz = sampleRateHz
+            },
+            onPcmChunk = { chunk ->
+                pcmOutput.write(chunk)
+            },
+        )
+
+        val monoPcm16 = pcmOutput.toByteArray()
+        if (monoPcm16.isEmpty()) return FloatArray(0)
+
+        val sourceSamples = ByteBuffer.wrap(monoPcm16)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .asShortBuffer()
+            .let { shortBuffer ->
+                FloatArray(shortBuffer.remaining()) { index ->
+                    shortBuffer.get(index) / Short.MAX_VALUE.toFloat()
+                }
+            }
+
+        return if (sourceSampleRateHz == targetSampleRateHz) {
+            sourceSamples
+        } else {
+            resampleToTargetRate(sourceSamples, sourceSampleRateHz, targetSampleRateHz)
+        }
+    }
 
     fun decodeToMonoPcm16(
         audioFilePath: String,
@@ -228,6 +264,25 @@ class MediaPcmDecoder @Inject constructor() {
                     .toMonoPcm16FromInt16(channels)
                 if (pcmChunk.isNotEmpty()) onPcmChunk(pcmChunk)
             }
+        }
+    }
+
+    private fun resampleToTargetRate(
+        sourceSamples: FloatArray,
+        sourceSampleRateHz: Int,
+        targetSampleRateHz: Int,
+    ): FloatArray {
+        if (sourceSamples.isEmpty()) return sourceSamples
+        val ratio = targetSampleRateHz.toDouble() / sourceSampleRateHz.toDouble()
+        val outputLength = (sourceSamples.size * ratio).toInt().coerceAtLeast(1)
+        return FloatArray(outputLength) { outputIndex ->
+            val sourcePosition = outputIndex / ratio
+            val leftIndex = sourcePosition.toInt().coerceIn(0, sourceSamples.lastIndex)
+            val rightIndex = (leftIndex + 1).coerceAtMost(sourceSamples.lastIndex)
+            val fraction = (sourcePosition - leftIndex).toFloat()
+            val left = sourceSamples[leftIndex]
+            val right = sourceSamples[rightIndex]
+            left + ((right - left) * fraction)
         }
     }
 }

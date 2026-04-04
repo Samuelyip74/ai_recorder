@@ -6,3 +6,8 @@
 /*.iml
 /captures/
 /.DS_Store
+.tmp_whisper_cpp
+app/src/main/assets/models/ggml-*.bin
+/whisperlib/build/
+/whisperlib/.cxx/
+

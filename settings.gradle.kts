@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AI Recorder"
 include(":app")
+include(":whisperlib")

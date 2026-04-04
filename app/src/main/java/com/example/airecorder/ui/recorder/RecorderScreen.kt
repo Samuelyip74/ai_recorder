@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.unit.LayoutDirection
 import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.model.RecorderState
 import com.example.airecorder.util.formatDuration
@@ -143,7 +145,11 @@ fun RecorderScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(paddingValues),
+            .padding(
+                start = paddingValues.calculateLeftPadding(LayoutDirection.Ltr),
+                end = paddingValues.calculateRightPadding(LayoutDirection.Ltr),
+                bottom = paddingValues.calculateBottomPadding(),
+            ),
     ) {
         RecorderHero()
         Surface(
@@ -207,7 +213,7 @@ fun RecorderScreen(
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ModeChip(
                             icon = Icons.Outlined.Mic,
                             contentDescription = "Mic",
@@ -258,7 +264,6 @@ fun RecorderScreen(
                             iconTint = Color.White,
                             enabled = uiState.recorderState == RecorderState.RECORDING || uiState.recorderState == RecorderState.PAUSED,
                             onClick = onStop,
-                            large = true,
                         )
                         RecorderControl(
                             label = "Start",
@@ -336,26 +341,22 @@ private fun ModeChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.widthIn(min = 48.dp),
-        shape = RoundedCornerShape(100),
-    ) {
-        Box(
-            modifier = Modifier
-                .background(
-                    if (selected) Color(0xFF2F80FF) else Color(0xFFEAF1FF),
-                    RoundedCornerShape(100),
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = if (selected) Color.White else Color(0xFF2F80FF),
-                modifier = Modifier.size(18.dp),
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .background(
+                if (selected) Color(0xFF2F80FF) else Color(0xFFEAF1FF),
+                RoundedCornerShape(100),
             )
-        }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (selected) Color.White else Color(0xFF2F80FF),
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -367,7 +368,7 @@ private fun RecorderHero() {
             .background(
                 Brush.verticalGradient(listOf(Color(0xFF2F80FF), Color(0xFF1F67E7))),
             )
-            .padding(horizontal = 22.dp, vertical = 18.dp),
+            .padding(start = 22.dp, end = 22.dp, top = 56.dp, bottom = 30.dp),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -378,7 +379,7 @@ private fun RecorderHero() {
                 Box(Modifier.size(48.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = Color.White)
-                    Text("AI Recorder", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Sonic Note", color = Color.White, fontWeight = FontWeight.SemiBold)
                     Text(
                         "Record, transcribe, summarize.",
                         color = Color.White.copy(alpha = 0.8f),
@@ -398,7 +399,6 @@ private fun RecorderControl(
     background: Color,
     enabled: Boolean,
     onClick: () -> Unit,
-    large: Boolean = false,
     iconTint: Color = Color(0xFF405067),
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -406,10 +406,10 @@ private fun RecorderControl(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
-                .size(if (large) 74.dp else 60.dp)
+                .size(68.dp)
                 .background(background.copy(alpha = if (enabled) 1f else 0.45f), CircleShape),
         ) {
-            Icon(icon, contentDescription = label, tint = iconTint, modifier = Modifier.size(if (large) 34.dp else 28.dp))
+            Icon(icon, contentDescription = label, tint = iconTint, modifier = Modifier.size(30.dp))
         }
         Text(label, color = Color(0xFF7B8598), style = MaterialTheme.typography.bodySmall)
     }

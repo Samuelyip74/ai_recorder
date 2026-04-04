@@ -165,11 +165,13 @@ class MeetingDetailViewModel @Inject constructor(
         }
     }
 
-    fun translateTranscript() {
-        if (uiState.value.isTranslating) return
+    fun translateTranscript(targetLanguage: String) {
+        val normalizedTargetLanguage = targetLanguage.trim().lowercase()
+        if (uiState.value.isTranslating || normalizedTargetLanguage.isBlank()) return
         viewModelScope.launch {
             isTranslating.value = true
-            translateTranscriptUseCase(meetingId, uiState.value.translationTargetLanguage)
+            settingsRepository.setTranslationTargetLanguage(normalizedTargetLanguage)
+            translateTranscriptUseCase(meetingId, normalizedTargetLanguage)
                 .onSuccess {
                     translatedTranscript.value = it
                     message.value = "Transcript translated locally."

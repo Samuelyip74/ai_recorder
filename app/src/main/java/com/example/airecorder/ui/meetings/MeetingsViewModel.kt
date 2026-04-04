@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class MeetingsUiState(
     val searchQuery: String = "",
@@ -37,5 +38,11 @@ class MeetingsViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         searchQuery.value = query
+    }
+
+    fun deleteMeeting(meetingId: Long) {
+        viewModelScope.launch {
+            meetingRepository.deleteMeeting(meetingId)
+        }
     }
 }

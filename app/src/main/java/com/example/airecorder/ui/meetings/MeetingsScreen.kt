@@ -13,28 +13,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.airecorder.domain.model.Meeting
-import com.example.airecorder.ui.components.StatusBadges
 import com.example.airecorder.util.formatDateTime
 import com.example.airecorder.util.formatDuration
 import java.text.SimpleDateFormat
@@ -46,6 +44,7 @@ fun MeetingsScreen(
     paddingValues: PaddingValues,
     uiState: MeetingsUiState,
     onQueryChange: (String) -> Unit,
+    onDeleteMeeting: (Long) -> Unit,
     onMeetingClick: (Long) -> Unit,
 ) {
     Column(
@@ -62,21 +61,7 @@ fun MeetingsScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Recordings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Row {
-                IconButton(onClick = {}) { Icon(Icons.Outlined.Search, contentDescription = null) }
-                IconButton(onClick = {}) { Icon(Icons.Outlined.FilterList, contentDescription = null) }
-            }
         }
-
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = uiState.searchQuery,
-            onValueChange = onQueryChange,
-            placeholder = { Text("Search recordings...") },
-            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-            shape = RoundedCornerShape(16.dp),
-            singleLine = true,
-        )
 
         if (uiState.meetings.isEmpty()) {
             Box(
@@ -101,7 +86,11 @@ fun MeetingsScreen(
                             color = Color(0xFF7B8598),
                         )
                     }
-                    MeetingListItem(meeting = meeting, onClick = { onMeetingClick(meeting.id) })
+                    MeetingListItem(
+                        meeting = meeting,
+                        onDelete = { onDeleteMeeting(meeting.id) },
+                        onClick = { onMeetingClick(meeting.id) },
+                    )
                 }
             }
         }
@@ -109,55 +98,92 @@ fun MeetingsScreen(
 }
 
 @Composable
-private fun MeetingListItem(meeting: Meeting, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+private fun MeetingListItem(
+    meeting: Meeting,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFFEF4444), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Delete",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.End,
+                    )
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = Color.White)
+                }
+            }
+        },
     ) {
-        Row(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(38.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = Color(0xFF7B8598), modifier = Modifier.size(18.dp))
-            }
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.CalendarToday,
+                        contentDescription = null,
+                        tint = Color(0xFF7B8598),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(meeting.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF20263A))
-                Text(
-                    "${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(meeting.createdAt))} • ${meeting.durationMs.formatDuration()}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF7B8598),
-                )
-                Text(
-                    if (meeting.recordingMode == com.example.airecorder.domain.model.RecordingMode.MIC) "Mic recording" else "Playback capture",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF4A79D9),
-                )
-                StatusBadges(
-                    transcriptStatus = meeting.transcriptStatus,
-                    summaryStatus = meeting.summaryStatus,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .background(Color(0xFFF1F5F9), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.PlayArrow, contentDescription = null, tint = Color(0xFF65748B))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(meeting.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF20263A))
+                    Text(
+                        "${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(meeting.createdAt))} • ${meeting.durationMs.formatDuration()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF7B8598),
+                    )
+                    Text(
+                        if (meeting.recordingMode == com.example.airecorder.domain.model.RecordingMode.MIC) "Mic recording" else "Playback capture",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF4A79D9),
+                    )
+                }
             }
         }
     }

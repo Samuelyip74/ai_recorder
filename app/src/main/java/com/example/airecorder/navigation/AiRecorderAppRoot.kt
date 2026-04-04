@@ -95,6 +95,7 @@ fun AiRecorderAppRoot() {
                     paddingValues = paddingValues,
                     uiState = state,
                     onQueryChange = viewModel::updateSearchQuery,
+                    onDeleteMeeting = viewModel::deleteMeeting,
                     onMeetingClick = { navController.navigate(NavRoutes.MeetingDetail.createRoute(it)) },
                 )
             }
@@ -117,10 +118,6 @@ fun AiRecorderAppRoot() {
                     onGenerateTranscript = viewModel::generateTranscript,
                     onTranslateTranscript = viewModel::translateTranscript,
                     onGenerateSummary = viewModel::generateSummary,
-                    onTranscriptTextChange = viewModel::updateTranscriptDraft,
-                    onSummaryTextChange = viewModel::updateSummaryDraft,
-                    onSaveTranscript = viewModel::saveTranscriptEdit,
-                    onSaveSummary = viewModel::saveSummaryEdit,
                     onClearMessage = viewModel::clearMessage,
                 )
             }

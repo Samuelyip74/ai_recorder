@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.AIRecorder" parent="Theme.Material3.Light">
-        <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
+        <item name="android:statusBarColor" tools:targetApi="l">#2F80FF</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>
