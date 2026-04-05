@@ -1,5 +1,9 @@
 package com.example.airecorder.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.Mic
@@ -10,7 +14,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -27,11 +34,43 @@ import com.example.airecorder.ui.meetings.MeetingsScreen
 import com.example.airecorder.ui.meetings.MeetingsViewModel
 import com.example.airecorder.ui.recorder.RecorderScreen
 import com.example.airecorder.ui.recorder.RecorderViewModel
+import com.example.airecorder.ui.rainbow.RainbowAuthViewModel
+import com.example.airecorder.ui.rainbow.RainbowLoginScreen
 import com.example.airecorder.ui.settings.SettingsScreen
 import com.example.airecorder.ui.settings.SettingsViewModel
 
 @Composable
 fun AiRecorderAppRoot() {
+    val authViewModel: RainbowAuthViewModel = hiltViewModel()
+    val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        authViewModel.onPhonePermissionChanged(granted)
+    }
+    LaunchedEffect(Unit) {
+        authViewModel.onPhonePermissionChanged(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_PHONE_STATE,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    if (!authState.isSignedIn) {
+        RainbowLoginScreen(
+            uiState = authState,
+            onLoginChanged = authViewModel::updateLogin,
+            onPasswordChanged = authViewModel::updatePassword,
+            onSignIn = authViewModel::signIn,
+            onRequestPhonePermission = {
+                permissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+            },
+            onDismissError = authViewModel::clearError,
+        )
+        return
+    }
+
     val navController = rememberNavController()
     val items = listOf(
         Triple(NavRoutes.Recorder.route, "Recorder", Icons.Outlined.Mic),
@@ -97,6 +136,7 @@ fun AiRecorderAppRoot() {
                     onQueryChange = viewModel::updateSearchQuery,
                     onDeleteMeeting = viewModel::deleteMeeting,
                     onDeleteAllMeetings = viewModel::deleteAllMeetings,
+                    onRefreshRainbowBubbles = viewModel::refreshRainbowBubbles,
                     onMeetingClick = { navController.navigate(NavRoutes.MeetingDetail.createRoute(it)) },
                 )
             }

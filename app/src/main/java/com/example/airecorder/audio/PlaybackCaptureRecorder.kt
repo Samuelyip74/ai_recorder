@@ -93,7 +93,9 @@ class PlaybackCaptureRecorder @Inject constructor(
         PlaybackCaptureService.startAndAwaitReady(context)
         val tempFile = File.createTempFile("playback_capture_", ".wav", context.cacheDir)
         Log.d(TAG, "Requesting MediaProjection token.")
-        val activeProjection = projectionManager.getMediaProjection(projectionCode, Intent(consentData))
+        val activeProjection = checkNotNull(
+            projectionManager.getMediaProjection(projectionCode, Intent(consentData)),
+        ) { "Unable to create MediaProjection for playback capture." }
         projectionResultCode = null
         projectionData = null
         Log.d(TAG, "MediaProjection token acquired.")

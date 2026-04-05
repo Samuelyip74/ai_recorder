@@ -17,16 +17,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,8 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.airecorder.domain.model.Meeting
+import com.example.airecorder.rainbow.RainbowBubbleConversation
 import com.example.airecorder.util.formatDateTime
 import com.example.airecorder.util.formatDuration
 import java.text.SimpleDateFormat
@@ -53,6 +57,7 @@ fun MeetingsScreen(
     onQueryChange: (String) -> Unit,
     onDeleteMeeting: (Long) -> Unit,
     onDeleteAllMeetings: () -> Unit,
+    onRefreshRainbowBubbles: () -> Unit,
     onMeetingClick: (Long) -> Unit,
 ) {
     var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -71,13 +76,22 @@ fun MeetingsScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Recordings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            if (uiState.meetings.isNotEmpty()) {
-                IconButton(onClick = { showDeleteAllDialog = true }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onRefreshRainbowBubbles) {
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete all recordings",
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "Refresh Rainbow bubbles",
                         tint = Color(0xFF20263A),
                     )
+                }
+                if (uiState.meetings.isNotEmpty()) {
+                    IconButton(onClick = { showDeleteAllDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete all recordings",
+                            tint = Color(0xFF20263A),
+                        )
+                    }
                 }
             }
         }
@@ -105,7 +119,7 @@ fun MeetingsScreen(
             )
         }
 
-        if (uiState.meetings.isEmpty()) {
+        if (uiState.meetings.isEmpty() && uiState.rainbowBubbles.isEmpty() && !uiState.isLoadingRainbowBubbles) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -116,6 +130,41 @@ fun MeetingsScreen(
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (uiState.isLoadingRainbowBubbles) {
+                    item {
+                        Row(
+                            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Text("Loading Rainbow bubbles...", color = Color(0xFF7B8598))
+                        }
+                    }
+                }
+                uiState.rainbowErrorMessage?.let { message ->
+                    item {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFB3261E),
+                        )
+                    }
+                }
+                if (uiState.rainbowBubbles.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Rainbow bubbles",
+                            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color(0xFF7B8598),
+                        )
+                    }
+                    items(uiState.rainbowBubbles, key = { it.id }) { bubble ->
+                        RainbowBubbleListItem(bubble = bubble)
+                    }
+                }
+
                 var lastSection: String? = null
                 items(uiState.meetings, key = { it.id }) { meeting ->
                     val section = meeting.createdAt.sectionTitle()
@@ -132,6 +181,71 @@ fun MeetingsScreen(
                         meeting = meeting,
                         onDelete = { onDeleteMeeting(meeting.id) },
                         onClick = { onMeetingClick(meeting.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RainbowBubbleListItem(
+    bubble: RainbowBubbleConversation,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(Color(0xFFEAF2FF), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.CalendarToday,
+                    contentDescription = null,
+                    tint = Color(0xFF4A79D9),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(bubble.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF20263A))
+                if (bubble.lastActivityAt > 0L) {
+                    Text(
+                        SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(bubble.lastActivityAt)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF7B8598),
+                    )
+                }
+                Text(
+                    text = bubble.lastMessagePreview ?: bubble.topic.ifBlank { "No recent messages" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4A79D9),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            if (bubble.unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF2F80FF), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        bubble.unreadCount.toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
@@ -163,8 +277,7 @@ private fun MeetingListItem(
         enableDismissFromEndToStart = true,
         backgroundContent = {
             Box(
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Row(
