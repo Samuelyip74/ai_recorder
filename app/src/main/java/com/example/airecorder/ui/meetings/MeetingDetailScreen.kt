@@ -65,8 +65,10 @@ fun MeetingDetailScreen(
     onDelete: () -> Unit,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
+    onShareRecording: () -> Unit,
     onGenerateTranscript: () -> Unit,
     onTranslateTranscript: (String) -> Unit,
+    onConsumeShareAudioPath: () -> Unit,
     onClearMessage: () -> Unit,
 ) {
     val detail = uiState.detail ?: return
@@ -87,6 +89,13 @@ fun MeetingDetailScreen(
         uiState.message?.let {
             snackbarHostState.showSnackbar(it)
             onClearMessage()
+        }
+    }
+
+    LaunchedEffect(uiState.shareAudioPath) {
+        uiState.shareAudioPath?.let {
+            shareRecording(context, it)
+            onConsumeShareAudioPath()
         }
     }
 
@@ -156,6 +165,7 @@ fun MeetingDetailScreen(
                     )
                     IconButton(
                         onClick = onPlayPause,
+                        enabled = !uiState.isResolvingAudio,
                         modifier = Modifier
                             .size(48.dp)
                             .background(Color(0xFF2F80FF), CircleShape),
@@ -168,7 +178,7 @@ fun MeetingDetailScreen(
                     }
                     ActionGlyph(
                         icon = Icons.Outlined.Share,
-                        onClick = { shareRecording(context, detail.meeting.audioFilePath) },
+                        onClick = onShareRecording,
                         contentDescription = "Share recording",
                     )
                 }

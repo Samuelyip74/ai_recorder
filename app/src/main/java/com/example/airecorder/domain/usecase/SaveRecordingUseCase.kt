@@ -5,6 +5,7 @@ import com.example.airecorder.domain.model.RecordingMode
 import com.example.airecorder.domain.repository.MeetingRepository
 import com.example.airecorder.domain.repository.SettingsRepository
 import com.example.airecorder.domain.repository.TranscriptRepository
+import com.example.airecorder.rainbow.RainbowLinkedMeetingResolver
 import com.example.airecorder.transcription.TranscriptGenerator
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
@@ -14,6 +15,7 @@ class SaveRecordingUseCase @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val transcriptRepository: TranscriptRepository,
     private val transcriptGenerator: TranscriptGenerator,
+    private val rainbowLinkedMeetingResolver: RainbowLinkedMeetingResolver,
 ) {
     suspend operator fun invoke(
         name: String,
@@ -41,10 +43,14 @@ class SaveRecordingUseCase @Inject constructor(
     private suspend fun maybeGenerateTranscript(meetingId: Long, preferences: AppPreferences) {
         if (!preferences.autoTranscribe) return
         val detail = meetingRepository.observeMeetingDetail(meetingId).first() ?: return
+        val whisperFile = rainbowLinkedMeetingResolver.resolveWhisperFile(detail.meeting).getOrElse {
+            transcriptRepository.markFailed(meetingId, preferences.transcriptionLanguage)
+            return
+        }
         transcriptRepository.upsertProcessing(meetingId, preferences.transcriptionLanguage)
         val transcriptResult = transcriptGenerator.generate(
             meetingId = meetingId,
-            audioFilePath = detail.meeting.whisperAudioFilePath,
+            audioFilePath = whisperFile.absolutePath,
             language = preferences.transcriptionLanguage,
         )
         val transcript = transcriptResult.getOrElse {
@@ -56,8 +62,9 @@ class SaveRecordingUseCase @Inject constructor(
 
     suspend fun generateTranscript(meetingId: Long, language: String): Result<Unit> = runCatching {
         val detail = meetingRepository.observeMeetingDetail(meetingId).first() ?: error("Meeting not found")
+        val whisperFile = rainbowLinkedMeetingResolver.resolveWhisperFile(detail.meeting).getOrThrow()
         transcriptRepository.upsertProcessing(meetingId, language)
-        transcriptGenerator.generate(meetingId, detail.meeting.whisperAudioFilePath, language)
+        transcriptGenerator.generate(meetingId, whisperFile.absolutePath, language)
             .onSuccess { transcriptRepository.saveCompleted(meetingId, it, language) }
             .onFailure { transcriptRepository.markFailed(meetingId, language) }
             .getOrThrow()

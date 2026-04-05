@@ -11,6 +11,7 @@ import com.example.airecorder.domain.repository.SettingsRepository
 import com.example.airecorder.domain.repository.TranscriptRepository
 import com.example.airecorder.domain.usecase.SaveRecordingUseCase
 import com.example.airecorder.domain.usecase.TranslateTranscriptUseCase
+import com.example.airecorder.rainbow.RainbowLinkedMeetingResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,8 @@ data class MeetingDetailUiState(
     val isTranslating: Boolean = false,
     val currentPositionMs: Long = 0L,
     val playbackDurationMs: Long = 0L,
+    val isResolvingAudio: Boolean = false,
+    val shareAudioPath: String? = null,
     val message: String? = null,
     val translationTargetLanguage: String = "es",
 )
@@ -43,6 +46,8 @@ private data class EditorState(
     val transcriptDraft: String?,
     val translatedTranscript: String,
     val isTranslating: Boolean,
+    val isResolvingAudio: Boolean,
+    val shareAudioPath: String?,
 )
 
 @HiltViewModel
@@ -53,6 +58,7 @@ class MeetingDetailViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val saveRecordingUseCase: SaveRecordingUseCase,
     private val translateTranscriptUseCase: TranslateTranscriptUseCase,
+    private val rainbowLinkedMeetingResolver: RainbowLinkedMeetingResolver,
     private val audioPlayer: AudioPlayer,
 ) : ViewModel() {
 
@@ -65,6 +71,8 @@ class MeetingDetailViewModel @Inject constructor(
     private val transcriptDraft = MutableStateFlow<String?>(null)
     private val translatedTranscript = MutableStateFlow("")
     private val isTranslating = MutableStateFlow(false)
+    private val isResolvingAudio = MutableStateFlow(false)
+    private val shareAudioPath = MutableStateFlow<String?>(null)
 
     private val playbackState = combine(
         audioPlayer.isPlaying,
@@ -82,11 +90,15 @@ class MeetingDetailViewModel @Inject constructor(
         transcriptDraft,
         translatedTranscript,
         isTranslating,
-    ) { transcriptText, translatedText, translating ->
+        isResolvingAudio,
+        shareAudioPath,
+    ) { transcriptText, translatedText, translating, resolvingAudio, pendingSharePath ->
         EditorState(
             transcriptDraft = transcriptText,
             translatedTranscript = translatedText,
             isTranslating = translating,
+            isResolvingAudio = resolvingAudio,
+            shareAudioPath = pendingSharePath,
         )
     }
 
@@ -105,6 +117,8 @@ class MeetingDetailViewModel @Inject constructor(
             isTranslating = editor.isTranslating,
             currentPositionMs = playback.currentPositionMs,
             playbackDurationMs = playback.playbackDurationMs,
+            isResolvingAudio = editor.isResolvingAudio,
+            shareAudioPath = editor.shareAudioPath,
             message = snackbar,
             translationTargetLanguage = preferences.translationTargetLanguage,
         )
@@ -112,7 +126,21 @@ class MeetingDetailViewModel @Inject constructor(
 
     fun togglePlayback() {
         val detail = uiState.value.detail ?: return
-        if (uiState.value.isPlaying) audioPlayer.pause() else audioPlayer.play(detail.meeting.audioFilePath)
+        if (uiState.value.isPlaying) {
+            audioPlayer.pause()
+            return
+        }
+
+        viewModelScope.launch {
+            isResolvingAudio.value = true
+            rainbowLinkedMeetingResolver.resolvePlaybackFile(detail.meeting)
+                .onSuccess { audioPlayer.play(it.absolutePath) }
+                .onFailure {
+                    Log.e(TAG, "Playback preparation failed for meetingId=$meetingId", it)
+                    message.value = it.message ?: "Unable to load recording."
+                }
+            isResolvingAudio.value = false
+        }
     }
 
     fun seekTo(positionMs: Long) {
@@ -176,8 +204,26 @@ class MeetingDetailViewModel @Inject constructor(
         }
     }
 
+    fun shareRecording() {
+        val detail = uiState.value.detail ?: return
+        viewModelScope.launch {
+            isResolvingAudio.value = true
+            rainbowLinkedMeetingResolver.resolvePlaybackFile(detail.meeting)
+                .onSuccess { shareAudioPath.value = it.absolutePath }
+                .onFailure {
+                    Log.e(TAG, "Share preparation failed for meetingId=$meetingId", it)
+                    message.value = it.message ?: "Unable to prepare recording for sharing."
+                }
+            isResolvingAudio.value = false
+        }
+    }
+
     fun clearMessage() {
         message.value = null
+    }
+
+    fun consumeShareAudioPath() {
+        shareAudioPath.value = null
     }
 
     override fun onCleared() {

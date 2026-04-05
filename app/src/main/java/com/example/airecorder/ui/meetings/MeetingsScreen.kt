@@ -58,6 +58,7 @@ fun MeetingsScreen(
     onDeleteMeeting: (Long) -> Unit,
     onDeleteAllMeetings: () -> Unit,
     onRefreshRainbowBubbles: () -> Unit,
+    onRainbowBubbleClick: (RainbowBubbleConversation) -> Unit,
     onMeetingClick: (Long) -> Unit,
 ) {
     var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -161,7 +162,11 @@ fun MeetingsScreen(
                         )
                     }
                     items(uiState.rainbowBubbles, key = { it.id }) { bubble ->
-                        RainbowBubbleListItem(bubble = bubble)
+                        RainbowBubbleListItem(
+                            bubble = bubble,
+                            isImporting = uiState.importingRainbowBubbleId == bubble.id,
+                            onClick = { onRainbowBubbleClick(bubble) },
+                        )
                     }
                 }
 
@@ -191,9 +196,13 @@ fun MeetingsScreen(
 @Composable
 private fun RainbowBubbleListItem(
     bubble: RainbowBubbleConversation,
+    isImporting: Boolean,
+    onClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !isImporting, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
     ) {
@@ -236,7 +245,9 @@ private fun RainbowBubbleListItem(
                 )
             }
 
-            if (bubble.unreadCount > 0) {
+            if (isImporting) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else if (bubble.unreadCount > 0) {
                 Box(
                     modifier = Modifier
                         .background(Color(0xFF2F80FF), RoundedCornerShape(999.dp))

@@ -43,21 +43,34 @@ class MeetingRepositoryImpl @Inject constructor(
         captureNotes: String,
     ): Long {
         val now = System.currentTimeMillis()
-        val finalFile = moveTempFileToMeetings(tempFilePath, now)
-        val finalWhisperFile = if (tempWhisperFilePath == tempFilePath) {
-            finalFile
+        val isRainbowLinkedRecording = captureNotes.contains("source=rainbow")
+        val finalAudioFilePath = if (isRainbowLinkedRecording) {
+            File(tempFilePath).takeIf { it.exists() }?.delete()
+            ""
         } else {
-            moveTempFileToMeetings(tempWhisperFilePath, "${now}_whisper")
+            moveTempFileToMeetings(tempFilePath, now).absolutePath
+        }
+        val finalWhisperFilePath = if (isRainbowLinkedRecording) {
+            if (tempWhisperFilePath != tempFilePath) {
+                File(tempWhisperFilePath).takeIf { it.exists() }?.delete()
+            }
+            ""
+        } else if (tempWhisperFilePath == tempFilePath) {
+            finalAudioFilePath
+        } else {
+            moveTempFileToMeetings(tempWhisperFilePath, "${now}_whisper").absolutePath
         }
         return meetingDao.insert(
             MeetingEntity(
                 name = name,
                 createdAt = now,
                 updatedAt = now,
-                audioFilePath = finalFile.absolutePath,
-                whisperAudioFilePath = finalWhisperFile.absolutePath,
+                audioFilePath = finalAudioFilePath,
+                whisperAudioFilePath = finalWhisperFilePath,
                 durationMs = durationMs,
-                fileSizeBytes = fileSizeBytes.takeIf { it > 0 } ?: finalFile.length(),
+                fileSizeBytes = fileSizeBytes.takeIf { it > 0 }
+                    ?: finalAudioFilePath.takeIf { it.isNotBlank() }?.let { File(it).length() }
+                    ?: 0L,
                 recordingMode = recordingMode,
                 captureNotes = captureNotes,
                 transcriptStatus = TranscriptStatus.NOT_STARTED,
@@ -73,8 +86,12 @@ class MeetingRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMeeting(meetingId: Long) {
         val existing = meetingDao.getById(meetingId) ?: return
-        File(existing.audioFilePath).takeIf { it.exists() }?.delete()
-        File(existing.whisperAudioFilePath).takeIf { it.exists() }?.delete()
+        existing.audioFilePath.takeIf { it.isNotBlank() }?.let { path ->
+            File(path).takeIf { it.exists() }?.delete()
+        }
+        existing.whisperAudioFilePath.takeIf { it.isNotBlank() }?.let { path ->
+            File(path).takeIf { it.exists() }?.delete()
+        }
         meetingDao.deleteById(meetingId)
     }
 

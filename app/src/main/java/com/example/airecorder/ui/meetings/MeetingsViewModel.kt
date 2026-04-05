@@ -6,6 +6,7 @@ import com.example.airecorder.domain.model.Meeting
 import com.example.airecorder.domain.repository.MeetingRepository
 import com.example.airecorder.rainbow.RainbowBubbleConversation
 import com.example.airecorder.rainbow.RainbowBubbleRepository
+import com.example.airecorder.rainbow.RainbowRecordingImportUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +23,9 @@ data class MeetingsUiState(
     val meetings: List<Meeting> = emptyList(),
     val rainbowBubbles: List<RainbowBubbleConversation> = emptyList(),
     val isLoadingRainbowBubbles: Boolean = false,
+    val importingRainbowBubbleId: String? = null,
     val rainbowErrorMessage: String? = null,
+    val importedMeetingId: Long? = null,
 )
 
 @HiltViewModel
@@ -30,11 +33,14 @@ data class MeetingsUiState(
 class MeetingsViewModel @Inject constructor(
     private val meetingRepository: MeetingRepository,
     private val rainbowBubbleRepository: RainbowBubbleRepository,
+    private val rainbowRecordingImportUseCase: RainbowRecordingImportUseCase,
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
     private val isLoadingRainbowBubbles = MutableStateFlow(false)
+    private val importingRainbowBubbleId = MutableStateFlow<String?>(null)
     private val rainbowErrorMessage = MutableStateFlow<String?>(null)
+    private val importedMeetingId = MutableStateFlow<Long?>(null)
 
     private val meetings = searchQuery
         .flatMapLatest { query -> meetingRepository.observeMeetings(query) }
@@ -47,14 +53,25 @@ class MeetingsViewModel @Inject constructor(
         meetings,
         rainbowBubbles,
         isLoadingRainbowBubbles,
+        importingRainbowBubbleId,
         rainbowErrorMessage,
-    ) { query, meetingList, bubbleList, isLoading, errorMessage ->
+        importedMeetingId,
+    ) { values ->
+        val query = values[0] as String
+        val meetingList = values[1] as List<Meeting>
+        val bubbleList = values[2] as List<RainbowBubbleConversation>
+        val isLoading = values[3] as Boolean
+        val importingBubbleId = values[4] as String?
+        val errorMessage = values[5] as String?
+        val importedId = values[6] as Long?
         MeetingsUiState(
             searchQuery = query,
             meetings = meetingList,
             rainbowBubbles = bubbleList,
             isLoadingRainbowBubbles = isLoading,
+            importingRainbowBubbleId = importingBubbleId,
             rainbowErrorMessage = errorMessage,
+            importedMeetingId = importedId,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeetingsUiState())
 
@@ -90,5 +107,26 @@ class MeetingsViewModel @Inject constructor(
             }
             isLoadingRainbowBubbles.value = false
         }
+    }
+
+    fun importRainbowRecording(bubble: RainbowBubbleConversation) {
+        if (importingRainbowBubbleId.value != null) return
+        viewModelScope.launch {
+            importingRainbowBubbleId.value = bubble.id
+            rainbowErrorMessage.value = null
+            importedMeetingId.value = null
+            rainbowRecordingImportUseCase(bubble)
+                .onSuccess { meetingId ->
+                    importedMeetingId.value = meetingId
+                }
+                .onFailure { throwable ->
+                    rainbowErrorMessage.value = throwable.message ?: "Unable to import Rainbow recording."
+                }
+            importingRainbowBubbleId.value = null
+        }
+    }
+
+    fun consumeImportedMeetingNavigation() {
+        importedMeetingId.value = null
     }
 }

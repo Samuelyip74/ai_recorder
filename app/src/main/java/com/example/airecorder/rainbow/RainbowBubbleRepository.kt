@@ -2,10 +2,12 @@ package com.example.airecorder.rainbow
 
 import android.util.Log
 import com.ale.infra.manager.files.RainbowFileDescriptor
-import com.ale.infra.manager.room.Room
+import com.ale.infra.manager.recordingfile.ConferenceRecord
+import com.ale.infra.manager.recordingfile.RecordFile
 import com.ale.infra.rest.listeners.onFailure
 import com.ale.infra.rest.listeners.onSuccess
 import com.ale.rainbowsdk.FileStorage
+import com.ale.rainbowsdk.Infrastructure
 import com.ale.rainbowsdk.RainbowSdk
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,6 +24,12 @@ data class RainbowBubbleConversation(
     val lastMessagePreview: String?,
     val unreadCount: Int,
     val recordingCount: Int,
+    val latestRecordingId: String?,
+)
+
+data class RainbowResolvedRecording(
+    val conferenceRecordId: String,
+    val descriptor: RainbowFileDescriptor,
 )
 
 @Singleton
@@ -29,10 +37,11 @@ class RainbowBubbleRepository @Inject constructor() {
 
     companion object {
         private const val TAG = "RainbowBubbleRepo"
-        private val RECORDING_EXTENSIONS = setOf("wav", "mp3", "m4a", "mp4", "aac", "ogg", "opus", "webm")
+        private val SUPPORTED_MEDIA_EXTENSIONS = setOf("wav", "mp3", "m4a", "mp4", "aac", "ogg", "opus", "webm")
     }
 
     private val sdk by lazy { RainbowSdk.instance() }
+    private val infrastructure by lazy { Infrastructure.instance() }
     private var listenerRegistered = false
     private val recordingLock = Any()
     private val recordingIdsByRoomId = linkedMapOf<String, LinkedHashSet<String>>()
@@ -66,13 +75,12 @@ class RainbowBubbleRepository @Inject constructor() {
 
     suspend fun refreshRecordedRooms() {
         sdk.bubbles().refreshActiveBubbles(offset = 0, limit = 500)
-        Log.d(TAG, "Refreshing recorded rooms. activeRooms=${sdk.bubbles().getAllList().size}")
+        Log.d(TAG, "Refreshing conference records. activeRooms=${sdk.bubbles().getAllList().size}")
+
         val discoveredRecordingsByRoomId = linkedMapOf<String, LinkedHashSet<String>>()
-        sdk.bubbles().getAllList().forEach { room ->
-            Log.d(TAG, "Scanning room id=${room.id} name=${room.name}")
-            collectBubbleRecordingIds(room).forEach { recordingId ->
-                discoveredRecordingsByRoomId.getOrPut(room.id) { linkedSetOf() }.add(recordingId)
-            }
+        val records = fetchConferenceRecords(roomId = null)
+        records.forEach { record ->
+            discoveredRecordingsByRoomId.getOrPut(record.roomId) { linkedSetOf() }.add(record.id)
         }
 
         val mergedRoomIds = synchronized(recordingLock) {
@@ -92,6 +100,40 @@ class RainbowBubbleRepository @Inject constructor() {
         }
     }
 
+    suspend fun resolveRecording(
+        roomId: String,
+        conferenceRecordId: String? = null,
+    ): RainbowResolvedRecording {
+        sdk.bubbles().refreshActiveBubbles(offset = 0, limit = 500)
+        val room = sdk.bubbles().findBubbleById(roomId)
+            ?: error("Rainbow bubble $roomId was not found.")
+        val resolvedRecord = if (conferenceRecordId.isNullOrBlank()) {
+            fetchConferenceRecords(roomId = roomId)
+                .maxWithOrNull(
+                    compareBy<ConferenceRecord> { it.startDate.time }
+                        .thenBy { it.endDate.time }
+                        .thenBy { it.id },
+                )
+        } else {
+            fetchConferenceRecordById(conferenceRecordId)
+        } ?: error("No conference recording record was found for ${room.name}.")
+
+        val selectedFile = selectPreferredMediaFile(resolvedRecord)
+            ?: error("No downloadable audio or video file was found for ${room.name}.")
+
+        var descriptor: RainbowFileDescriptor? = null
+        infrastructure.conferenceRecordMgr.resolveFileDescriptor(resolvedRecord, selectedFile.fileId)
+            .onSuccess { descriptor = it }
+            .onFailure { failure ->
+                throw IllegalStateException(failure.message.ifBlank { "Unable to resolve Rainbow recording file." })
+            }
+
+        return RainbowResolvedRecording(
+            conferenceRecordId = resolvedRecord.id,
+            descriptor = descriptor ?: error("Rainbow recording resolution completed without a file descriptor."),
+        )
+    }
+
     fun clear() {
         synchronized(recordingLock) {
             recordingIdsByRoomId.clear()
@@ -102,7 +144,8 @@ class RainbowBubbleRepository @Inject constructor() {
     private fun publishRoom(roomId: String, fallbackRoomName: String?) {
         val room = sdk.bubbles().findBubbleById(roomId)
         val conversation = room?.let { sdk.im().getConversationFromRoom(it) }
-        val recordingCount = synchronized(recordingLock) { recordingIdsByRoomId[roomId]?.size ?: 0 }
+        val recordingIds = synchronized(recordingLock) { recordingIdsByRoomId[roomId]?.toList().orEmpty() }
+        val recordingCount = recordingIds.size
         val updatedRoom = RainbowBubbleConversation(
             id = roomId,
             name = room?.name.orEmpty().ifBlank {
@@ -114,6 +157,7 @@ class RainbowBubbleRepository @Inject constructor() {
                 ?: "Conference recording available",
             unreadCount = conversation?.unreadMessageNumber ?: 0,
             recordingCount = recordingCount,
+            latestRecordingId = recordingIds.lastOrNull(),
         )
         _recordedRooms.update { current ->
             current.filterNot { it.id == roomId }
@@ -133,71 +177,48 @@ class RainbowBubbleRepository @Inject constructor() {
         recordingIdsByRoomId.keys.toList()
     }
 
-    private suspend fun collectBubbleRecordingIds(room: Room): Set<String> {
-        val recordingIds = linkedSetOf<String>()
-        var offset = 0
-        val pageSize = 100
-        while (true) {
-            val page = buildList {
-                addAll(fetchBubbleFiles(room = room, limit = pageSize, offset = offset) { targetRoom, targetLimit, targetOffset ->
-                    sdk.fileStorage().fetchFileInBubble(room = targetRoom, limit = targetLimit, offset = targetOffset)
-                })
-                addAll(fetchBubbleFiles(room = room, limit = pageSize, offset = offset) { targetRoom, targetLimit, targetOffset ->
-                    sdk.fileStorage().fetchFileReceivedInBubble(room = targetRoom, limit = targetLimit, offset = targetOffset)
-                })
-                addAll(fetchBubbleFiles(room = room, limit = pageSize, offset = offset) { targetRoom, targetLimit, targetOffset ->
-                    sdk.fileStorage().fetchFileSentInBubble(room = targetRoom, limit = targetLimit, offset = targetOffset)
-                })
-            }.distinctBy { it.id }
-
-            page.forEach { file ->
-                Log.d(
-                    TAG,
-                    "File candidate roomId=${room.id} fileId=${file.id} name=${file.fileName} mime=${file.typeMIME} ext=${file.extension} confRoomId=${file.filesConfRecordingRoomId}",
-                )
-            }
-            page.filter { isRecordingFile(it, room.id) }
-                .mapNotNull { it.id }
-                .forEach(recordingIds::add)
-
-            Log.d(TAG, "Room id=${room.id} pageOffset=$offset pageSize=${page.size} matchedRecordings=${recordingIds.size}")
-
-            if (page.size < pageSize) break
-            offset += pageSize
+    private suspend fun fetchConferenceRecords(roomId: String?): List<ConferenceRecord> {
+        var records: List<ConferenceRecord> = emptyList()
+        infrastructure.conferenceRecordMgr.fetchConferenceRecords(
+            roomId = roomId,
+            status = listOf("release_complete"),
+            limit = 100,
+            offset = 0,
+            sortField = "recordingStartDate",
+            sortOrder = -1,
+        ).onSuccess {
+            records = it
+            Log.d(TAG, "Conference records fetched roomId=$roomId count=${it.size}")
+        }.onFailure { failure ->
+            Log.e(TAG, "Conference record fetch failed roomId=$roomId message=${failure.message}")
+            throw IllegalStateException(failure.message.ifBlank { "Unable to load Rainbow conference recordings." })
         }
-        return recordingIds
+        return records
     }
 
-    private suspend fun fetchBubbleFiles(
-        room: Room,
-        limit: Int,
-        offset: Int,
-        fetcher: suspend (Room, Int, Int) -> com.ale.infra.rest.listeners.RainbowResult<List<RainbowFileDescriptor>>,
-    ): List<RainbowFileDescriptor> {
-        var page: List<RainbowFileDescriptor> = emptyList()
-        fetcher(room, limit, offset)
-            .onSuccess { page = it }
-            .onFailure { failure ->
-                Log.e(TAG, "Bubble file fetch failed for roomId=${room.id} roomName=${room.name} offset=$offset limit=$limit message=${failure.message}")
-                throw IllegalStateException(failure.message.ifBlank { "Unable to load Rainbow files for ${room.name}." })
+    private suspend fun fetchConferenceRecordById(conferenceRecordId: String): ConferenceRecord? {
+        var record: ConferenceRecord? = null
+        infrastructure.conferenceRecordMgr.fetchConferenceRecordById(conferenceRecordId)
+            .onSuccess {
+                record = it
+                Log.d(TAG, "Conference record fetched id=$conferenceRecordId roomId=${it.roomId}")
             }
-        Log.d(TAG, "Bubble file fetch success roomId=${room.id} roomName=${room.name} offset=$offset limit=$limit count=${page.size}")
-        return page
+            .onFailure { failure ->
+                Log.e(TAG, "Conference record fetch failed id=$conferenceRecordId message=${failure.message}")
+            }
+        return record
     }
 
-    private fun isRecordingFile(file: RainbowFileDescriptor, roomId: String): Boolean {
-        if (file.filesConfRecordingRoomId == roomId) return true
-        if (file.isAudioType() || file.isVideoType()) return true
+    private fun selectPreferredMediaFile(record: ConferenceRecord): RecordFile? {
+        return record.getAudioFile()
+            ?: record.getVideoFile()
+            ?: record.files.firstOrNull(::isSupportedMediaFile)
+    }
 
-        val extension = file.extension
-            ?.lowercase()
-            ?.removePrefix(".")
-            ?: file.fileName
-                ?.substringAfterLast('.', missingDelimiterValue = "")
-                ?.lowercase()
-                ?.removePrefix(".")
-                .orEmpty()
-
-        return extension in RECORDING_EXTENSIONS
+    private fun isSupportedMediaFile(file: RecordFile): Boolean {
+        val extension = file.fileName.substringAfterLast('.', "").lowercase()
+        return file.typeMIME.startsWith("audio/")
+            || file.typeMIME.startsWith("video/")
+            || extension in SUPPORTED_MEDIA_EXTENSIONS
     }
 }

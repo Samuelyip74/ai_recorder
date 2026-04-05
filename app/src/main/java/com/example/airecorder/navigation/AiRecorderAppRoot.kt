@@ -130,6 +130,12 @@ fun AiRecorderAppRoot() {
             composable(NavRoutes.Meetings.route) {
                 val viewModel: MeetingsViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                LaunchedEffect(state.importedMeetingId) {
+                    state.importedMeetingId?.let { meetingId ->
+                        navController.navigate(NavRoutes.MeetingDetail.createRoute(meetingId))
+                        viewModel.consumeImportedMeetingNavigation()
+                    }
+                }
                 MeetingsScreen(
                     paddingValues = paddingValues,
                     uiState = state,
@@ -137,6 +143,7 @@ fun AiRecorderAppRoot() {
                     onDeleteMeeting = viewModel::deleteMeeting,
                     onDeleteAllMeetings = viewModel::deleteAllMeetings,
                     onRefreshRainbowBubbles = viewModel::refreshRainbowBubbles,
+                    onRainbowBubbleClick = viewModel::importRainbowRecording,
                     onMeetingClick = { navController.navigate(NavRoutes.MeetingDetail.createRoute(it)) },
                 )
             }
@@ -156,8 +163,10 @@ fun AiRecorderAppRoot() {
                     },
                     onPlayPause = viewModel::togglePlayback,
                     onSeek = viewModel::seekTo,
+                    onShareRecording = viewModel::shareRecording,
                     onGenerateTranscript = viewModel::generateTranscript,
                     onTranslateTranscript = viewModel::translateTranscript,
+                    onConsumeShareAudioPath = viewModel::consumeShareAudioPath,
                     onClearMessage = viewModel::clearMessage,
                 )
             }
