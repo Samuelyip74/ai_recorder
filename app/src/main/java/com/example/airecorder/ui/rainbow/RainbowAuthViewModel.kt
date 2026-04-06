@@ -51,6 +51,10 @@ class RainbowAuthViewModel @Inject constructor(
                             it.copy(isLoading = true, errorMessage = null)
                         }
 
+                        RainbowAuthManager.RainbowSessionState.SigningOut -> {
+                            it.copy(isLoading = true, isSignedIn = false, errorMessage = null)
+                        }
+
                         RainbowAuthManager.RainbowSessionState.Authenticated -> {
                             it.copy(isLoading = true, errorMessage = null)
                         }
@@ -104,7 +108,7 @@ class RainbowAuthViewModel @Inject constructor(
         val login = state.login.trim()
         val password = state.password
         when {
-            login.isBlank() -> _uiState.update { it.copy(errorMessage = "Enter your Rainbow login.") }
+            login.isBlank() -> _uiState.update { it.copy(errorMessage = "Enter your email address.") }
             password.isBlank() -> _uiState.update { it.copy(errorMessage = "Enter your Rainbow password.") }
             !state.hasPhonePermission -> _uiState.update {
                 it.copy(errorMessage = "Phone permission is required to initialize Rainbow.")
@@ -131,6 +135,19 @@ class RainbowAuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun signOut() {
+        autoSignInAttempted = false
+        rainbowAuthManager.signOut()
+        _uiState.update {
+            it.copy(
+                password = "",
+                isLoading = true,
+                isSignedIn = false,
+                errorMessage = null,
+            )
+        }
     }
 
     private fun attemptAutoSignIn() {

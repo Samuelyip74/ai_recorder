@@ -68,6 +68,8 @@ fun MeetingDetailScreen(
     onShareRecording: () -> Unit,
     onGenerateTranscript: () -> Unit,
     onTranslateTranscript: (String) -> Unit,
+    onViewTranscript: (Long) -> Unit,
+    onViewTranslation: (Long) -> Unit,
     onConsumeShareAudioPath: () -> Unit,
     onClearMessage: () -> Unit,
 ) {
@@ -77,8 +79,6 @@ fun MeetingDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var renameText by remember(detail.meeting.name) { mutableStateOf(detail.meeting.name) }
-    var showTranscriptDialog by remember { mutableStateOf(false) }
-    var showTranslationDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var translateLanguageInput by remember(uiState.translationTargetLanguage) {
         mutableStateOf(uiState.translationTargetLanguage)
@@ -214,7 +214,7 @@ fun MeetingDetailScreen(
                     uiState.transcriptDraft.isNotBlank(),
                 isFailed = detail.meeting.transcriptStatus == TranscriptStatus.FAILED,
                 readyText = "View transcript",
-                onView = { showTranscriptDialog = true },
+                onView = { onViewTranscript(detail.meeting.id) },
             )
 
             ActionStatusRow(
@@ -223,7 +223,7 @@ fun MeetingDetailScreen(
                 isReady = uiState.translatedTranscript.isNotBlank(),
                 isFailed = false,
                 readyText = "View translation",
-                onView = { showTranslationDialog = true },
+                onView = { onViewTranslation(detail.meeting.id) },
             )
         }
 
@@ -288,21 +288,6 @@ fun MeetingDetailScreen(
         )
     }
 
-    if (showTranscriptDialog) {
-        DocumentDialog(
-            title = "Transcript",
-            text = uiState.transcriptDraft,
-            onDismiss = { showTranscriptDialog = false },
-        )
-    }
-
-    if (showTranslationDialog) {
-        DocumentDialog(
-            title = "Translation (${uiState.translationTargetLanguage.uppercase()})",
-            text = uiState.translatedTranscript,
-            onDismiss = { showTranslationDialog = false },
-        )
-    }
 }
 
 @Composable

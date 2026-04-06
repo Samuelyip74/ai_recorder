@@ -179,17 +179,20 @@ class MeetingDetailViewModel @Inject constructor(
         if (uiState.value.isTranslating || normalizedTargetLanguage.isBlank()) return
         viewModelScope.launch {
             isTranslating.value = true
-            settingsRepository.setTranslationTargetLanguage(normalizedTargetLanguage)
-            translateTranscriptUseCase(meetingId, normalizedTargetLanguage)
-                .onSuccess {
-                    translatedTranscript.value = it
-                    message.value = "Transcript translated locally."
-                }
-                .onFailure {
-                    Log.e(TAG, "Transcript translation failed for meetingId=$meetingId", it)
-                    message.value = "Translation failed: ${it.message ?: "Unknown error"}"
-                }
-            isTranslating.value = false
+            try {
+                settingsRepository.setTranslationTargetLanguage(normalizedTargetLanguage)
+                translateTranscriptUseCase(meetingId, normalizedTargetLanguage)
+                    .onSuccess {
+                        translatedTranscript.value = it
+                        message.value = "Transcript translated locally."
+                    }
+                    .onFailure {
+                        Log.e(TAG, "Transcript translation failed for meetingId=$meetingId", it)
+                        message.value = "Translation failed: ${it.message ?: "Unknown error"}"
+                    }
+            } finally {
+                isTranslating.value = false
+            }
         }
     }
 

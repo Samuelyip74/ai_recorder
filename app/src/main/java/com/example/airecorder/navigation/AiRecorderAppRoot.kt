@@ -32,6 +32,8 @@ import com.example.airecorder.ui.meetings.MeetingDetailScreen
 import com.example.airecorder.ui.meetings.MeetingDetailViewModel
 import com.example.airecorder.ui.meetings.MeetingsScreen
 import com.example.airecorder.ui.meetings.MeetingsViewModel
+import com.example.airecorder.ui.meetings.TranslationDetailScreen
+import com.example.airecorder.ui.meetings.TranscriptDetailScreen
 import com.example.airecorder.ui.recorder.RecorderScreen
 import com.example.airecorder.ui.recorder.RecorderViewModel
 import com.example.airecorder.ui.rainbow.RainbowAuthViewModel
@@ -79,7 +81,9 @@ fun AiRecorderAppRoot() {
     )
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
-    val showBottomBar = destination?.route != NavRoutes.MeetingDetail.route
+    val showBottomBar = destination?.route != NavRoutes.MeetingDetail.route &&
+        destination?.route != NavRoutes.TranscriptDetail.route &&
+        destination?.route != NavRoutes.TranslationDetail.route
 
     Scaffold(
         bottomBar = {
@@ -166,8 +170,54 @@ fun AiRecorderAppRoot() {
                     onShareRecording = viewModel::shareRecording,
                     onGenerateTranscript = viewModel::generateTranscript,
                     onTranslateTranscript = viewModel::translateTranscript,
+                    onViewTranscript = {
+                        navController.navigate(NavRoutes.TranscriptDetail.createRoute(it))
+                    },
+                    onViewTranslation = {
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "translatedTranscript",
+                            state.translatedTranscript,
+                        )
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "translationTargetLanguage",
+                            state.translationTargetLanguage,
+                        )
+                        navController.navigate(NavRoutes.TranslationDetail.createRoute(it))
+                    },
                     onConsumeShareAudioPath = viewModel::consumeShareAudioPath,
                     onClearMessage = viewModel::clearMessage,
+                )
+            }
+            composable(
+                route = NavRoutes.TranscriptDetail.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.LongType }),
+            ) {
+                val viewModel: MeetingDetailViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                TranscriptDetailScreen(
+                    uiState = state,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = NavRoutes.TranslationDetail.route,
+                arguments = listOf(navArgument("meetingId") { type = NavType.LongType }),
+            ) {
+                val viewModel: MeetingDetailViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val translatedTranscript = navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.get<String>("translatedTranscript")
+                    .orEmpty()
+                val translationTargetLanguage = navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.get<String>("translationTargetLanguage")
+                    ?: state.translationTargetLanguage
+                TranslationDetailScreen(
+                    uiState = state,
+                    translatedTranscript = translatedTranscript,
+                    translationTargetLanguage = translationTargetLanguage,
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(NavRoutes.Settings.route) {
@@ -179,7 +229,7 @@ fun AiRecorderAppRoot() {
                     onAutoTranscribeChanged = viewModel::setAutoTranscribe,
                     onLanguageChanged = viewModel::setLanguage,
                     onTranslationTargetLanguageChanged = viewModel::setTranslationTargetLanguage,
-                    onDeleteAll = viewModel::deleteAllData,
+                    onLogout = authViewModel::signOut,
                     onMessageShown = viewModel::clearMessage,
                 )
             }

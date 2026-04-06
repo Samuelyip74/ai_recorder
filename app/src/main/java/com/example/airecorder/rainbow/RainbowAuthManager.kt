@@ -153,6 +153,19 @@ class RainbowAuthManager @Inject constructor(
         authPreferences.edit().clear().apply()
     }
 
+    fun signOut() {
+        pendingCredentials = null
+        clearCachedCredentials()
+        rainbowBubbleRepository.clear()
+        _sessionState.value = RainbowSessionState.SigningOut
+        runCatching {
+            sdk.connection().signOut()
+        }.onFailure { error ->
+            Log.w(TAG, "Rainbow sign-out call failed, forcing signed-out state.", error)
+            _sessionState.value = RainbowSessionState.SignedOut
+        }
+    }
+
     private fun saveCachedCredentials(credentials: CachedRainbowCredentials) {
         authPreferences.edit()
             .putString(KEY_LOGIN, credentials.login)
@@ -168,6 +181,7 @@ class RainbowAuthManager @Inject constructor(
     sealed interface RainbowSessionState {
         data object SignedOut : RainbowSessionState
         data object SigningIn : RainbowSessionState
+        data object SigningOut : RainbowSessionState
         data object Authenticated : RainbowSessionState
         data object SignedIn : RainbowSessionState
         data class Error(val message: String) : RainbowSessionState

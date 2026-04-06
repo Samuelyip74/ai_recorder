@@ -436,7 +436,7 @@ private fun RecorderHero() {
                 Box(Modifier.size(48.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = Color.White)
-                    Text("Sonic Note", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("RB-Notes", color = Color.White, fontWeight = FontWeight.SemiBold)
                     Text(
                         "Record, transcribe, summarize.",
                         color = Color.White.copy(alpha = 0.8f),

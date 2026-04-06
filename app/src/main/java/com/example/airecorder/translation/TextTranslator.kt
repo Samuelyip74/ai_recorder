@@ -6,13 +6,13 @@ interface TextTranslator {
     suspend fun downloadModelIfNeeded(
         sourceLanguageTag: String,
         targetLanguageTag: String,
-        requireWifi: Boolean = true,
+        requireWifi: Boolean = false,
     ): Result<Unit>
 
     suspend fun translate(
         text: String,
         sourceLanguageTag: String,
         targetLanguageTag: String,
-        requireWifiForModelDownload: Boolean = true,
+        requireWifiForModelDownload: Boolean = false,
     ): Result<String>
 }

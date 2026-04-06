@@ -83,20 +83,29 @@ class RainbowBubbleRepository @Inject constructor() {
             discoveredRecordingsByRoomId.getOrPut(record.roomId) { linkedSetOf() }.add(record.id)
         }
 
-        val mergedRoomIds = synchronized(recordingLock) {
+        val refreshedRoomIds = synchronized(recordingLock) {
+            recordingIdsByRoomId.clear()
             discoveredRecordingsByRoomId.forEach { (roomId, recordingIds) ->
-                val existingIds = recordingIdsByRoomId.getOrPut(roomId) { linkedSetOf() }
-                existingIds += recordingIds
+                recordingIdsByRoomId[roomId] = LinkedHashSet(recordingIds)
             }
             recordingIdsByRoomId.keys.toList()
         }
 
         Log.d(
             TAG,
-            "Recorded rooms discovered=${discoveredRecordingsByRoomId.size} ids=${discoveredRecordingsByRoomId.keys}; mergedTrackedRooms=$mergedRoomIds",
+            "Recorded rooms discovered=${discoveredRecordingsByRoomId.size} ids=${discoveredRecordingsByRoomId.keys}; refreshedTrackedRooms=$refreshedRoomIds",
         )
-        mergedRoomIds.forEach { roomId ->
+        if (refreshedRoomIds.isEmpty()) {
+            _recordedRooms.value = emptyList()
+            return
+        }
+
+        refreshedRoomIds.forEach { roomId ->
             publishRoom(roomId = roomId, fallbackRoomName = null)
+        }
+
+        _recordedRooms.update { current ->
+            current.filter { it.id in refreshedRoomIds }
         }
     }
 

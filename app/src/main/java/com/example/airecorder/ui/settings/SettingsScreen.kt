@@ -1,6 +1,5 @@
 package com.example.airecorder.ui.settings
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,8 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
@@ -37,14 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.airecorder.ui.components.SectionCard
-import com.example.airecorder.util.formatBytes
 
 @Composable
 fun SettingsScreen(
@@ -53,11 +47,11 @@ fun SettingsScreen(
     onAutoTranscribeChanged: (Boolean) -> Unit,
     onLanguageChanged: (String) -> Unit,
     onTranslationTargetLanguageChanged: (String) -> Unit,
-    onDeleteAll: () -> Unit,
+    onLogout: () -> Unit,
     onMessageShown: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    var confirmDelete by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
     var showTranslationTargetPicker by remember { mutableStateOf(false) }
     val languages = listOf("English" to "en", "Spanish" to "es", "French" to "fr", "German" to "de")
@@ -79,25 +73,6 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-
-        SectionCard("Storage") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                StorageRing(
-                    totalLabel = uiState.storageStats.totalBytes.formatBytes(),
-                    usedLabel = "of 10 GB used",
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StorageLegend("Audio", uiState.storageStats.audioBytes.formatBytes(), Color(0xFF2F80FF))
-                    StorageLegend("Transcripts", uiState.storageStats.textBytes.formatBytes(), Color(0xFFFF9F43))
-                    StorageLegend("Other", "0 B", Color(0xFFD1D5DB))
-                    Text("Manage storage >", color = Color(0xFF2F80FF), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
 
         SectionCard("Preferences") {
             PreferenceToggle(
@@ -121,51 +96,34 @@ fun SettingsScreen(
             )
         }
 
-        SectionCard("Privacy") {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(Color(0xFFFFF3E9), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.Lock, contentDescription = null, tint = Color(0xFFFB923C))
-                }
-                Column {
-                    Text("All data stays on your device.", fontWeight = FontWeight.SemiBold)
-                    Text("No upload and no sharing of your recordings.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF7B8598))
-                }
-            }
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFFFEBEE), RoundedCornerShape(18.dp))
-                .clickable { confirmDelete = true }
+                .background(Color(0xFFEAF1FF), RoundedCornerShape(18.dp))
+                .clickable { confirmLogout = true }
                 .padding(16.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.DeleteSweep, contentDescription = null, tint = Color(0xFFEF4444))
-                Text("Delete All Recordings & Data", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null, tint = Color(0xFF1F67E7))
+                Text("Logout", color = Color(0xFF1F67E7), fontWeight = FontWeight.SemiBold)
             }
         }
 
         SnackbarHost(hostState = snackbarHostState)
     }
 
-    if (confirmDelete) {
+    if (confirmLogout) {
         AlertDialog(
-            onDismissRequest = { confirmDelete = false },
+            onDismissRequest = { confirmLogout = false },
             confirmButton = {
                 TextButton(onClick = {
-                    onDeleteAll()
-                    confirmDelete = false
-                }) { Text("Delete") }
+                    onLogout()
+                    confirmLogout = false
+                }) { Text("Logout") }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
-            title = { Text("Delete All Recordings & Data") },
-            text = { Text("This will delete every local recording and transcript.") },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+            title = { Text("Logout") },
+            text = { Text("This will sign you out of RB-Notes on this device.") },
         )
     }
 
@@ -193,32 +151,6 @@ fun SettingsScreen(
                 showTranslationTargetPicker = false
             },
         )
-    }
-}
-
-@Composable
-private fun StorageRing(totalLabel: String, usedLabel: String) {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-        Canvas(modifier = Modifier.size(120.dp)) {
-            val stroke = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)
-            drawArc(Color(0xFFE5E7EB), -90f, 360f, false, style = stroke, size = Size(size.width, size.height))
-            drawArc(Color(0xFF2F80FF), -90f, 180f, false, style = stroke, size = Size(size.width, size.height))
-            drawArc(Color(0xFFFF9F43), 90f, 72f, false, style = stroke, size = Size(size.width, size.height))
-            drawArc(Color(0xFF2ED573), 162f, 54f, false, style = stroke, size = Size(size.width, size.height))
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(totalLabel, fontWeight = FontWeight.Bold)
-            Text(usedLabel, style = MaterialTheme.typography.bodySmall, color = Color(0xFF7B8598))
-        }
-    }
-}
-
-@Composable
-private fun StorageLegend(label: String, value: String, color: Color) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
-        Text(label, modifier = Modifier.weight(1f))
-        Text(value, color = Color(0xFF7B8598), style = MaterialTheme.typography.bodySmall)
     }
 }
 

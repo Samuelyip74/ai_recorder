@@ -7,10 +7,16 @@ import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.tasks.await
 
 @Singleton
 class MlKitTextTranslator @Inject constructor() : TextTranslator {
+
+    companion object {
+        private const val TRANSLATION_TIMEOUT_MS = 90_000L
+    }
 
     override fun isLanguageSupported(languageTag: String): Boolean {
         return TranslateLanguage.fromLanguageTag(languageTag) != null
@@ -23,10 +29,15 @@ class MlKitTextTranslator @Inject constructor() : TextTranslator {
     ): Result<Unit> = runCatching {
         val translator = createTranslator(sourceLanguageTag, targetLanguageTag)
         try {
-            translator.downloadModelIfNeeded(downloadConditions(requireWifi)).await()
+            withTimeout(TRANSLATION_TIMEOUT_MS) {
+                translator.downloadModelIfNeeded(downloadConditions(requireWifi)).await()
+                Unit
+            }
         } finally {
             translator.close()
         }
+    }.recoverCatching { throwable ->
+        throw throwable.toReadableTranslationError()
     }
 
     override suspend fun translate(
@@ -38,11 +49,15 @@ class MlKitTextTranslator @Inject constructor() : TextTranslator {
         require(text.isNotBlank()) { "Text to translate cannot be blank." }
         val translator = createTranslator(sourceLanguageTag, targetLanguageTag)
         try {
-            translator.downloadModelIfNeeded(downloadConditions(requireWifiForModelDownload)).await()
-            translator.translate(text).await()
+            withTimeout(TRANSLATION_TIMEOUT_MS) {
+                translator.downloadModelIfNeeded(downloadConditions(requireWifiForModelDownload)).await()
+                translator.translate(text).await()
+            }
         } finally {
             translator.close()
         }
+    }.recoverCatching { throwable ->
+        throw throwable.toReadableTranslationError()
     }
 
     private fun createTranslator(
@@ -68,5 +83,15 @@ class MlKitTextTranslator @Inject constructor() : TextTranslator {
                 requireWifi()
             }
         }.build()
+    }
+
+    private fun Throwable.toReadableTranslationError(): Throwable {
+        return when (this) {
+            is TimeoutCancellationException -> IllegalStateException(
+                "Translation timed out while downloading the language model or translating the transcript.",
+                this,
+            )
+            else -> this
+        }
     }
 }

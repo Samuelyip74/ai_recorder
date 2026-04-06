@@ -85,14 +85,12 @@ fun MeetingsScreen(
                         tint = Color(0xFF20263A),
                     )
                 }
-                if (uiState.meetings.isNotEmpty()) {
-                    IconButton(onClick = { showDeleteAllDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete all recordings",
-                            tint = Color(0xFF20263A),
-                        )
-                    }
+                IconButton(onClick = { showDeleteAllDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Delete all recordings",
+                        tint = Color(0xFF20263A),
+                    )
                 }
             }
         }
@@ -155,7 +153,7 @@ fun MeetingsScreen(
                 if (uiState.rainbowBubbles.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Rainbow bubbles",
+                            text = "Conferences",
                             modifier = Modifier.padding(top = 4.dp, start = 2.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = Color(0xFF7B8598),
